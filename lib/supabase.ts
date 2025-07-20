@@ -44,6 +44,7 @@ export type Flight = {
   arrival_time: string;
   cabin_class: string;
   points_required: number;
+  bookable_programs: number[];
 };
 
 export type FlightProgram = {

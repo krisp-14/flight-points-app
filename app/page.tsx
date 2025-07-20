@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, Fragment } from "react";
 import { format } from "date-fns"
-import { CalendarIcon, Loader2, Search } from "lucide-react"
+import { Loader2, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,21 +10,40 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { TransferPathStepper } from "@/components/transfer-path-stepper"
 import { EmptyState } from "@/components/empty-state"
 import { FlightCard } from "@/components/flight-card"
 import { getPrograms, searchFlights, findTransferPath } from "./actions"
-import type { Program, Flight } from "@/lib/supabase"
+import type { Program, Flight } from "@/lib/supabase";
+import { Combobox } from "@headlessui/react";
+import { supabase } from "../lib/supabase"; // Adjust path as needed
+import type { Airport } from "../lib/types";
+import { AirportCombobox } from "../components/AirportCombobox";
+
+// Custom input for react-datepicker that forwards ref and props
+const DateInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
+  (props, ref) => <Input ref={ref} {...props} />
+);
+DateInput.displayName = "DateInput";
+
+export function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debounced;
+}
+
 
 export default function FlightPointsOptimizer() {
   // Form state
-  const [origin, setOrigin] = useState("")
-  const [destination, setDestination] = useState("")
+  // Use selectedOrigin and selectedDestination from AirportCombobox
   const [date, setDate] = useState<Date>()
   const [sourceProgram, setSourceProgram] = useState<number | "">("")
   const [optimizationMode, setOptimizationMode] = useState("value")
+  const [userPoints, setUserPoints] = useState<{ [programId: number]: number }>({});
 
   // Data state
   const [programs, setPrograms] = useState<Program[]>([])
@@ -38,7 +57,7 @@ export default function FlightPointsOptimizer() {
   const [isFindingPath, setIsFindingPath] = useState(false)
   const [searchPerformed, setSearchPerformed] = useState(false)
   const [errorType, setErrorType] = useState<"no-flights" | "no-path" | null>(null)
-  const [dbError, setDbError] = useState<number | null>(null)
+  const [dbError, setDbError] = useState<string | null>(null)
 
   // Fetch programs on component mount
   useEffect(() => {
@@ -53,7 +72,7 @@ export default function FlightPointsOptimizer() {
         console.error("Error fetching programs:", error)
         setDbError("Failed to load loyalty programs. Using mock data instead.")
         // Set mock programs as fallback
-        setPrograms([
+        setPrograms([ 
           { id: 1, name: "Amex Membership Rewards"},
           { id: 2, name: "RBC Avion"},
           { id: 3, name: "CIBC Aventura"},
@@ -69,7 +88,7 @@ export default function FlightPointsOptimizer() {
   }, [])
 
   const handleSearch = async () => {
-    if (!origin || !destination || !date || !sourceProgram) return
+    if (!selectedOrigin?.code || !selectedDestination?.code || !date || !sourceProgram) return
 
     setIsSearching(true)
     setSearchPerformed(true)
@@ -80,12 +99,11 @@ export default function FlightPointsOptimizer() {
 
     try {
       const formattedDate = format(date, "yyyy-MM-dd")
-      const flightResults = await searchFlights(origin, destination, formattedDate)
+      const flightResults = await searchFlights(selectedOrigin.code, selectedDestination.code, formattedDate)
 
-      setFlights(flightResults)
-
+      setFlights(flightResults);
       if (flightResults.length === 0) {
-        setErrorType("no-flights")
+        setErrorType("no-flights");
       }
     } catch (error) {
       console.error("Error searching flights:", error)
@@ -102,12 +120,16 @@ export default function FlightPointsOptimizer() {
     setIsFindingPath(true)
 
     try {
-      const result = await findTransferPath(sourceProgram, flight.bookable_programs, optimizationMode)
-
-      setTransferPath(result.path)
-
+      // Pass userPoints as the fourth argument
+      const result = await findTransferPath(
+        Number(sourceProgram),
+        flight.bookable_programs,
+        optimizationMode,
+        userPoints
+      );
+      setTransferPath(result.path);
       if (result.errorType) {
-        setErrorType(result.errorType)
+        setErrorType(result.errorType);
       }
     } catch (error) {
       console.error("Error finding transfer path:", error)
@@ -127,6 +149,39 @@ export default function FlightPointsOptimizer() {
   // Debug log for programs
   console.log("Current programs state:", programs)
   console.log("Current sourceProgram state:", sourceProgram)
+
+  const [selectedOrigin, setSelectedOrigin] = useState<Airport | null>(null);
+  const [selectedDestination, setSelectedDestination] = useState<Airport | null>(null);
+
+
+/*
+
+next steps:
+
+1) remove all the mock data and hook this up to use supabase.
+
+2) better organization of the code. all the database queries and logic should live in the actions
+file in clean and clear methods (actions). the page should just be the UI and rendering the components by 
+callings the actions. 
+
+3) save manual point inputs into the database so it remembers user's points balances. 
+
+4) nit: don't allow users to choose dates from the past 
+
+
+
+extras:
+1) nit: have an initial load of airports (maybe most popular or to take it to the next level it could be location 
+based depending on where the user is located. you don't want to load all airport options at once though. 
+later on this can be cached. 
+
+2) nit: there is a loading state bug where when you start the server and load, it stalls on some load. 
+Then on refresh it works again. something to look into later. 
+
+*/
+
+
+
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -148,42 +203,36 @@ export default function FlightPointsOptimizer() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="origin">Origin</Label>
-                <Input
-                  id="origin"
-                  placeholder="YYZ, YVR, etc."
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
+                <AirportCombobox
+                  label="Origin"
+                  selected={selectedOrigin}
+                  onChange={setSelectedOrigin}
+                  placeholder="Type city, code, or country"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="destination">Destination</Label>
-                <Input
-                  id="destination"
-                  placeholder="LHR, CDG, etc."
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
+                <AirportCombobox
+                  label="Destination"
+                  selected={selectedDestination}
+                  onChange={setSelectedDestination}
+                  excludeCode={selectedOrigin?.code}
+                  placeholder="Type city, code, or country"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Travel Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="date"
-                      variant={"outline"}
-                      className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Select date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                  </PopoverContent>
-                </Popover>
+                <Label htmlFor="date" className="block">Travel Date</Label>
+                <Calendar
+                  selected={date || null}
+                  onChange={(d: Date | null) => setDate(d ?? undefined)}
+                  placeholderText="Pick a date"
+                  dateFormat="yyyy-MM-dd"
+                  minDate={new Date()} // Only allow dates from today onward
+                  className="w-full"
+                />
               </div>
 
               <div className="space-y-2">
@@ -195,14 +244,14 @@ export default function FlightPointsOptimizer() {
                     <span className="text-muted-foreground">Loading programs...</span>
                   </div>
                 ) : (
-                  <Select value={sourceProgram} onValueChange={(e) => setSourceProgram(Number(e))}>
+                  <Select value={sourceProgram === "" ? "" : String(sourceProgram)} onValueChange={(e) => setSourceProgram(e === "" ? "" : Number(e))}>
                     <SelectTrigger id="source-program">
                       <SelectValue placeholder="Select your points program" />
                     </SelectTrigger>
                     <SelectContent>
                       {programs.length > 0 ? (
                         programs.map((program) => (
-                          <SelectItem key={program.id} value={program.id}>
+                          <SelectItem key={program.id} value={String(program.id)}>
                             {program.name}
                           </SelectItem>
                         ))
@@ -214,6 +263,31 @@ export default function FlightPointsOptimizer() {
                     </SelectContent>
                   </Select>
                 )}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold mb-2">Your Points Balances</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {programs.map((program) => (
+                  <div key={program.id} className="flex items-center space-x-2">
+                    <Label htmlFor={`points-${program.id}`} className="w-40">{program.name}</Label>
+                    <Input
+                      id={`points-${program.id}`}
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={userPoints[program.id] || ""}
+                      onChange={(e) =>
+                        setUserPoints((prev) => ({
+                          ...prev,
+                          [program.id]: Number(e.target.value),
+                        }))
+                      }
+                      className="w-32"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -245,7 +319,7 @@ export default function FlightPointsOptimizer() {
           <Button
             className="w-full"
             onClick={handleSearch}
-            disabled={isSearching || !origin || !destination || !date || !sourceProgram}
+            disabled={isSearching || !selectedOrigin?.code || !selectedDestination?.code || !date || !sourceProgram}
           >
             {isSearching ? (
               <>
@@ -305,8 +379,8 @@ export default function FlightPointsOptimizer() {
                       ) : errorType ? (
                         <EmptyState
                           errorType={errorType}
-                          origin={origin}
-                          destination={destination}
+                          origin={selectedOrigin?.city || ""}
+                          destination={selectedDestination?.city || ""}
                           date={date}
                           onRetry={handleRetry}
                         />
@@ -328,8 +402,8 @@ export default function FlightPointsOptimizer() {
             !isSearching && (
               <EmptyState
                 errorType={errorType}
-                origin={origin}
-                destination={destination}
+                origin={selectedOrigin?.city || ""}
+                destination={selectedDestination?.city || ""}
                 date={date}
                 onRetry={handleRetry}
               />
