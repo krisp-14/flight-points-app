@@ -84,3 +84,44 @@ export async function findTransferPath(
     return { path: null, errorType: "no-path" };
   }
 }
+
+/**
+ * Fetches all points balances for a user from Supabase.
+ * Returns an object mapping program_id to points.
+ */
+export async function getUserPoints(userId: string): Promise<{ [programId: number]: number }> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('user_points')
+    .select('program_id, points')
+    .eq('user_id', userId);
+  if (error || !data) {
+    console.error('Error fetching user points:', error);
+    return {};
+  }
+  const points: { [programId: number]: number } = {};
+  for (const row of data) {
+    const { program_id, points: pts } = row as { program_id: number, points: number };
+    points[program_id] = pts;
+  }
+  return points;
+}
+
+/**
+ * Upserts all points balances for a user in Supabase.
+ * Accepts an object mapping program_id to points.
+ */
+export async function saveUserPoints(userId: string, points: { [programId: number]: number }): Promise<void> {
+  const supabase = getSupabaseClient();
+  const rows = Object.entries(points).map(([programId, pts]) => ({
+    user_id: userId,
+    program_id: Number(programId),
+    points: Math.max(0, Math.floor(pts)), // ensure non-negative integer
+  }));
+  if (rows.length === 0) return;
+  const { error } = await supabase.from('user_points').upsert(rows, { onConflict: 'user_id,program_id' });
+  if (error) {
+    console.error('Error saving user points:', error);
+    throw error;
+  }
+}

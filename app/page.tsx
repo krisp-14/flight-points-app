@@ -14,12 +14,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { TransferPathStepper } from "@/components/transfer-path-stepper"
 import { EmptyState } from "@/components/empty-state"
 import { FlightCard } from "@/components/flight-card"
-import { getPrograms, searchFlights, findTransferPath } from "./actions"
+import { getPrograms, searchFlights, findTransferPath, getUserPoints, saveUserPoints } from "./actions"
 import type { Program, Flight } from "@/lib/supabase";
 import { Combobox } from "@headlessui/react";
 import { supabase } from "../lib/supabase"; // Adjust path as needed
 import type { Airport } from "../lib/types";
 import { AirportCombobox } from "../components/AirportCombobox";
+import { canBook } from "@/lib/logic/canBook";
+import { PointsBalance } from "@/components/PointsBalance";
+import { FlightList } from "@/components/FlightList";
 
 // Custom input for react-datepicker that forwards ref and props
 const DateInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
@@ -27,13 +30,12 @@ const DateInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof
 );
 DateInput.displayName = "DateInput";
 
-export function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebounced(value), delay);
+// Debounce utility
+function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
+  React.useEffect(() => {
+    const handler = setTimeout(() => effect(), delay);
     return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debounced;
+  }, [...deps, delay]);
 }
 
 
@@ -43,13 +45,16 @@ export default function FlightPointsOptimizer() {
   const [date, setDate] = useState<Date>()
   const [sourceProgram, setSourceProgram] = useState<number | "">("")
   const [optimizationMode, setOptimizationMode] = useState("value")
-  const [userPoints, setUserPoints] = useState<{ [programId: number]: number }>({});
+  // Placeholder userId for now (replace with real user ID if you have auth)
+  const userId = "00000000-0000-0000-0000-000000000001";
 
   // Data state
   const [programs, setPrograms] = useState<Program[]>([])
   const [flights, setFlights] = useState<Flight[]>([])
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null)
   const [transferPath, setTransferPath] = useState<any>(null)
+  const [userPoints, setUserPoints] = useState<{ [programId: number]: number }>({});
+  const [pointsError, setPointsError] = useState<string | null>(null);
 
   // UI state
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(true)
@@ -87,6 +92,34 @@ export default function FlightPointsOptimizer() {
     fetchPrograms()
   }, [])
 
+  // Fetch user points on mount
+  useEffect(() => {
+    async function fetchPoints() {
+      try {
+        const points = await getUserPoints(userId);
+        setUserPoints(points);
+      } catch (err) {
+        setPointsError("Failed to load your points balances.");
+      }
+    }
+    fetchPoints();
+  }, [userId]);
+
+  // Save user points when they change (debounced)
+  useDebouncedEffect(() => {
+    async function savePoints() {
+      try {
+        await saveUserPoints(userId, userPoints);
+        setPointsError(null);
+      } catch (err) {
+        setPointsError("Failed to save your points balances.");
+      }
+    }
+    if (Object.keys(userPoints).length > 0) {
+      savePoints();
+    }
+  }, [userPoints, userId], 500);
+
   const handleSearch = async () => {
     if (!selectedOrigin?.code || !selectedDestination?.code || !date || !sourceProgram) return
 
@@ -101,8 +134,14 @@ export default function FlightPointsOptimizer() {
       const formattedDate = format(date, "yyyy-MM-dd")
       const flightResults = await searchFlights(selectedOrigin.code, selectedDestination.code, formattedDate)
 
-      setFlights(flightResults);
-      if (flightResults.length === 0) {
+      // Compute canBook for each flight and sort bookable flights first
+      const flightsWithCanBook = flightResults.map(flight => ({
+        ...flight,
+        canBook: canBook(flight, userPoints)
+      }));
+      const sortedFlights = flightsWithCanBook.sort((a, b) => Number(b.canBook) - Number(a.canBook));
+      setFlights(sortedFlights);
+      if (sortedFlights.length === 0) {
         setErrorType("no-flights");
       }
     } catch (error) {
@@ -152,35 +191,6 @@ export default function FlightPointsOptimizer() {
 
   const [selectedOrigin, setSelectedOrigin] = useState<Airport | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<Airport | null>(null);
-
-
-/*
-
-next steps:
-
-1) remove all the mock data and hook this up to use supabase.
-
-2) better organization of the code. all the database queries and logic should live in the actions
-file in clean and clear methods (actions). the page should just be the UI and rendering the components by 
-callings the actions. 
-
-3) save manual point inputs into the database so it remembers user's points balances. 
-
-4) nit: don't allow users to choose dates from the past 
-
-
-
-extras:
-1) nit: have an initial load of airports (maybe most popular or to take it to the next level it could be location 
-based depending on where the user is located. you don't want to load all airport options at once though. 
-later on this can be cached. 
-
-2) nit: there is a loading state bug where when you start the server and load, it stalls on some load. 
-Then on refresh it works again. something to look into later. 
-
-*/
-
-
 
 
   return (
@@ -266,30 +276,15 @@ Then on refresh it works again. something to look into later.
               </div>
             </div>
 
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold mb-2">Your Points Balances</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {programs.map((program) => (
-                  <div key={program.id} className="flex items-center space-x-2">
-                    <Label htmlFor={`points-${program.id}`} className="w-40">{program.name}</Label>
-                    <Input
-                      id={`points-${program.id}`}
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={userPoints[program.id] || ""}
-                      onChange={(e) =>
-                        setUserPoints((prev) => ({
-                          ...prev,
-                          [program.id]: Number(e.target.value),
-                        }))
-                      }
-                      className="w-32"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Points Balances Section */}
+            <PointsBalance
+              programs={programs}
+              userPoints={userPoints}
+              error={pointsError || undefined}
+              onChange={(programId, value) =>
+                setUserPoints((prev) => ({ ...prev, [programId]: value }))
+              }
+            />
 
             <div className="space-y-2">
               <Label>Optimization Mode</Label>
@@ -347,14 +342,11 @@ Then on refresh it works again. something to look into later.
                     <CardDescription>Select a flight to see transfer options</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {flights.map((flight) => (
-                      <FlightCard
-                        key={flight.id}
-                        flight={flight}
-                        selected={selectedFlight?.id === flight.id}
-                        onSelect={() => handleFlightSelect(flight)}
-                      />
-                    ))}
+                    <FlightList
+                      flights={flights}
+                      selectedFlightId={selectedFlight?.id ?? null}
+                      onSelect={handleFlightSelect}
+                    />
                   </CardContent>
                 </Card>
               </div>
