@@ -34,6 +34,12 @@ export type TransferPath = {
   ratio: string;
 };
 
+export type BookableOption = {
+  program_id: number;
+  program_name: string;
+  points_required: number;
+};
+
 export type Flight = {
   id: number;
   airline: string;
@@ -45,6 +51,7 @@ export type Flight = {
   cabin_class: string;
   points_required: number;
   bookable_programs: number[];
+  bookable_options: BookableOption[];
 };
 
 export type FlightProgram = {

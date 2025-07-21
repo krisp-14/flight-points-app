@@ -28,11 +28,11 @@ export async function getPrograms(): Promise<Program[]> {
 export async function searchFlights(origin: string, destination: string, date: string): Promise<Flight[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
-    .from('flights_with_programs')
+    .from('flights_with_bookable_options')
     .select('*')
     .eq('origin', origin)
     .eq('destination', destination)
-    .eq('departure_time', `${date}T08:00:00`); // Adjust this filter as needed for your schema
+    .eq('departure_time', `${date}T08:00:00`); // Adjust as needed
 
   if (error) {
     console.error('Error fetching flights:', error);
@@ -58,6 +58,10 @@ export async function findTransferPath(
   errorType: "no-path" | null
 }> {
   try {
+    // Direct booking: no transfer needed
+    if (targetPrograms.includes(sourceProgram)) {
+      return { path: [], errorType: null };
+    }
     // Fetch all transfer paths from Supabase
     const supabase = getSupabaseClient();
     const { data: transferPaths, error } = await supabase.from("transfer_paths").select("*");
@@ -67,7 +71,6 @@ export async function findTransferPath(
       return { path: null, errorType: "no-path" };
     }
 
-    // Fetch all programs for reference
     const { data: programs, error: programsError } = await supabase.from("programs").select("*");
 
     if (programsError || !programs) {
