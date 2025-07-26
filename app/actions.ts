@@ -2,6 +2,7 @@
 
 import { getSupabaseClient, type Program, type Flight } from "@/lib/supabase"
 import { initializeDatabase } from "@/lib/db-init"
+import type { Itinerary } from "@/lib/supabase";
 
 export async function getPrograms(): Promise<Program[]> {
   try {
@@ -39,6 +40,23 @@ export async function searchFlights(origin: string, destination: string, date: s
     return [];
   }
   return (data as Flight[]) || [];
+}
+
+export async function searchItineraries(origin: string, destination: string, date: string): Promise<Itinerary[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('itineraries_with_segments')
+    .select('*')
+    .eq('origin', origin)
+    .eq('destination', destination)
+    .gte('departure_time', `${date}T00:00:00`)
+    .lt('departure_time', `${date}T23:59:59`);
+
+  if (error) {
+    console.error('Error fetching itineraries:', error);
+    return [];
+  }
+  return (data as Itinerary[]) || [];
 }
 
 export async function findTransferPath(

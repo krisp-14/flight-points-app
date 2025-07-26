@@ -52,9 +52,27 @@ export type Flight = {
   points_required: number;
   bookable_programs: number[];
   bookable_options: BookableOption[];
+  origin_timezone?: string;
+  destination_timezone?: string;
 };
 
 export type FlightProgram = {
   flight_id: number;
   program_id: number;
+};
+
+export type ItinerarySegment = {
+  segment_number: number;
+  flight: Flight;
+  origin_timezone: string;
+  destination_timezone: string;
+};
+
+export type Itinerary = {
+  id: number;
+  origin: string;
+  destination: string;
+  departure_time: string;
+  arrival_time: string;
+  segments: ItinerarySegment[];
 };

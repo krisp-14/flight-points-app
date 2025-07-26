@@ -2,23 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { getPrograms, searchFlights, findTransferPath, getUserPoints, saveUserPoints } from "./actions";
-import type { Program, Flight } from "@/lib/supabase";
+import { getPrograms, searchFlights, findTransferPath, getUserPoints, saveUserPoints, searchItineraries } from "./actions";
+import type { Program, Flight, Itinerary } from "@/lib/supabase";
 import type { Airport } from "../lib/types";
 import { canBook } from "@/lib/logic/canBook";
 // Modular UI components
 import { PointsBalance } from "@/components/PointsBalance";
-import { FlightList } from "@/components/FlightList";
 import { TransferPathPanel } from "@/components/TransferPathPanel";
 import { FlightSearchForm } from "@/components/FlightSearchForm";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
-
-// Custom input for react-datepicker that forwards ref and props
-const DateInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
-  (props, ref) => <Input ref={ref} {...props} />
-);
-DateInput.displayName = "DateInput";
+import { ItineraryCard } from "@/components/itineraryCard";
 
 // Debounce utility
 function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
@@ -45,6 +39,10 @@ export default function FlightPointsOptimizer() {
   const [transferPath, setTransferPath] = useState<any>(null)
   const [userPoints, setUserPoints] = useState<{ [programId: number]: number }>({});
   const [pointsError, setPointsError] = useState<string | null>(null);
+
+  // Add state for itineraries and selectedItinerary
+  const [itineraries, setItineraries] = useState<Itinerary[]>([]);
+  const [selectedItinerary, setSelectedItinerary] = useState<Itinerary | null>(null);
 
   // UI state
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(true)
@@ -110,37 +108,29 @@ export default function FlightPointsOptimizer() {
     }
   }, [userPoints, userId], 500);
 
+  // Replace flight search logic with itinerary search
   const handleSearch = async () => {
-    if (!selectedOrigin?.code || !selectedDestination?.code || !date || !sourceProgram) return
-
-    setIsSearching(true)
-    setSearchPerformed(true)
-    setSelectedFlight(null)
-    setTransferPath(null)
-    setErrorType(null)
-    setFlights([])
-
+    if (!selectedOrigin?.code || !selectedDestination?.code || !date) return;
+    setIsSearching(true);
+    setSearchPerformed(true);
+    setSelectedItinerary(null);
+    setTransferPath(null);
+    setErrorType(null);
+    setItineraries([]);
     try {
-      const formattedDate = format(date, "yyyy-MM-dd")
-      const flightResults = await searchFlights(selectedOrigin.code, selectedDestination.code, formattedDate)
-
-      // Compute canBook for each flight and sort bookable flights first
-      const flightsWithCanBook = flightResults.map(flight => ({
-        ...flight,
-        canBook: canBook(flight, userPoints)
-      }));
-      const sortedFlights = flightsWithCanBook.sort((a, b) => Number(b.canBook) - Number(a.canBook));
-      setFlights(sortedFlights);
-      if (sortedFlights.length === 0) {
+      const formattedDate = format(date, "yyyy-MM-dd");
+      const itineraryResults = await searchItineraries(selectedOrigin.code, selectedDestination.code, formattedDate);
+      setItineraries(itineraryResults);
+      if (itineraryResults.length === 0) {
         setErrorType("no-flights");
       }
     } catch (error) {
-      console.error("Error searching flights:", error)
-      setErrorType("no-flights")
+      console.error("Error searching itineraries:", error);
+      setErrorType("no-flights");
     } finally {
-      setIsSearching(false)
+      setIsSearching(false);
     }
-  }
+  };
 
   const handleFlightSelect = async (flight: Flight) => {
     setSelectedFlight(flight)
@@ -229,27 +219,32 @@ export default function FlightPointsOptimizer() {
 
       {searchPerformed && (
         <>
-          {flights.length > 0 ? (
+          {/* Available Itineraries Section */}
+          {itineraries.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Available Flights</CardTitle>
-                    <CardDescription>Select a flight to see transfer options</CardDescription>
+                    <CardTitle>Available Itineraries</CardTitle>
+                    <CardDescription>Select an itinerary to see transfer options</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <FlightList
-                      flights={flights}
-                      selectedFlightId={selectedFlight?.id ?? null}
-                      onSelect={handleFlightSelect}
-                    />
+                    {itineraries.map(itinerary => (
+                      <ItineraryCard
+                        key={itinerary.id}
+                        itinerary={itinerary}
+                        userPoints={userPoints}
+                        onSelect={() => setSelectedItinerary(itinerary)}
+                        selected={selectedItinerary?.id === itinerary.id}
+                      />
+                    ))}
                   </CardContent>
                 </Card>
               </div>
-
               <div className="lg:col-span-2">
+                {/* You can update TransferPathPanel to use selectedItinerary if needed */}
                 <TransferPathPanel
-                  selectedFlight={selectedFlight}
+                  selectedFlight={selectedItinerary?.segments[0]?.flight || null}
                   transferPath={transferPath}
                   isFindingPath={isFindingPath}
                   errorType={errorType}
@@ -261,16 +256,6 @@ export default function FlightPointsOptimizer() {
                 />
               </div>
             </div>
-          ) : (
-            !isSearching && (
-              <EmptyState
-                errorType={errorType}
-                origin={selectedOrigin?.city || ""}
-                destination={selectedDestination?.city || ""}
-                date={date}
-                onRetry={handleRetry}
-              />
-            )
           )}
         </>
       )}

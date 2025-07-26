@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { Flight } from "@/lib/supabase";
+import { formatInTimeZone } from "date-fns-tz";
 
 interface FlightCardProps {
   flight: Flight;
@@ -16,6 +17,16 @@ export const FlightCard: React.FC<FlightCardProps> = ({ flight, selected, onSele
     .map(opt => `${opt.points_required.toLocaleString()} ${opt.program_name} points`)
     .join(" or ");
 
+  const dep = new Date(flight.departure_time);
+  const originTz = flight.origin_timezone || "UTC";
+  const depStr = formatInTimeZone(dep, originTz, "MMM d, h:mm a zzz");
+
+  const arr = new Date(flight.arrival_time);
+  const durationMs = arr.getTime() - dep.getTime();
+  const durationHrs = Math.floor(durationMs / (1000 * 60 * 60));
+  const durationMin = Math.floor((durationMs / (1000 * 60)) % 60);
+  const durationStr = `${durationHrs}h ${durationMin}m`;
+
   return (
     <div
       className={`border rounded p-4 mb-4 cursor-pointer ${selected ? "border-blue-500 bg-blue-50" : "border-gray-200"}`}
@@ -23,11 +34,9 @@ export const FlightCard: React.FC<FlightCardProps> = ({ flight, selected, onSele
     >
       <div className="flex justify-between items-center">
         <div>
-          <div className="font-semibold text-lg">
-            {flight.airline} {flight.flight_number} &rarr; {flight.destination}
-          </div>
-          <div className="text-sm text-gray-500">
-            {flight.cabin_class} Class &middot; Departs {flight.departure_time ? new Date(flight.departure_time).toLocaleString() : ""}
+          <div>{flight.origin} → {flight.destination}</div>
+          <div>
+            Departs {depStr} &middot; Duration: {durationStr}
           </div>
         </div>
         <div className="text-green-600 font-bold">
