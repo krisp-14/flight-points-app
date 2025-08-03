@@ -1,15 +1,10 @@
 "use server"
 
 import { getSupabaseClient, type Program, type Flight } from "@/lib/supabase"
-import { initializeDatabase } from "@/lib/db-init"
 import type { Itinerary } from "@/lib/supabase";
 
 export async function getPrograms(): Promise<Program[]> {
   try {
-    // Try to initialize the database if needed
-    const initialized = await initializeDatabase()
-    console.log("Database initialized:", initialized)
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.from("programs").select("*").order("name")
 
@@ -43,6 +38,8 @@ export async function searchFlights(origin: string, destination: string, date: s
 }
 
 export async function searchItineraries(origin: string, destination: string, date: string): Promise<Itinerary[]> {
+  console.log('Searching itineraries for:', { origin, destination, date });
+  
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('itineraries_with_segments')
@@ -52,10 +49,14 @@ export async function searchItineraries(origin: string, destination: string, dat
     .gte('departure_time', `${date}T00:00:00`)
     .lt('departure_time', `${date}T23:59:59`);
 
+  console.log('Supabase query result:', { data, error });
+
   if (error) {
     console.error('Error fetching itineraries:', error);
     return [];
   }
+  
+  console.log('Returning itineraries:', data);
   return (data as Itinerary[]) || [];
 }
 

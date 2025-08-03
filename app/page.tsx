@@ -13,6 +13,8 @@ import { FlightSearchForm } from "@/components/FlightSearchForm";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { ItineraryCard } from "@/components/itineraryCard";
+import { RouteGrid } from "@/components/RouteGrid";
+import { CITY_METADATA } from "@/lib/route-data";
 
 // Debounce utility
 function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
@@ -172,6 +174,30 @@ export default function FlightPointsOptimizer() {
   const [selectedOrigin, setSelectedOrigin] = useState<Airport | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<Airport | null>(null);
 
+  // Route selection handler for RouteGrid
+  const handleRouteSelect = (origin: string, destination: string, availableDates: Date[]) => {
+    const originCity = CITY_METADATA[origin];
+    const destinationCity = CITY_METADATA[destination];
+    
+    if (originCity && destinationCity) {
+      setSelectedOrigin({
+        code: origin,
+        city: originCity.city,
+        country: originCity.country,
+      });
+      setSelectedDestination({
+        code: destination,
+        city: destinationCity.city,
+        country: destinationCity.country,
+      });
+      
+      // Set the earliest available flight date
+      if (availableDates.length > 0) {
+        setDate(availableDates[0]);
+      }
+    }
+  };
+
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -182,6 +208,11 @@ export default function FlightPointsOptimizer() {
           <p>{dbError}</p>
         </div>
       )}
+
+      {/* Route Selection Grid */}
+      <div className="mb-8">
+        <RouteGrid onRouteSelect={handleRouteSelect} />
+      </div>
 
       <Card className="mb-8">
         <CardHeader>
@@ -220,7 +251,7 @@ export default function FlightPointsOptimizer() {
       {searchPerformed && (
         <>
           {/* Available Itineraries Section */}
-          {itineraries.length > 0 && (
+          {itineraries.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1">
                 <Card>
@@ -256,6 +287,14 @@ export default function FlightPointsOptimizer() {
                 />
               </div>
             </div>
+          ) : (
+            <EmptyState
+              errorType={errorType}
+              origin={selectedOrigin?.city || ""}
+              destination={selectedDestination?.city || ""}
+              date={date}
+              onRetry={handleRetry}
+            />
           )}
         </>
       )}

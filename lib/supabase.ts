@@ -22,9 +22,25 @@ export function getSupabaseClient() {
 // Export for convenience
 export const supabase = getSupabaseClient()
 
+// =============================================================================
+// REFACTORED DATABASE TYPES
+// =============================================================================
+
+export type Airport = {
+  id: number;
+  code: string;
+  city: string;
+  country: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Program = {
   id: number;
   name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type TransferPath = {
@@ -32,6 +48,9 @@ export type TransferPath = {
   from_program_id: number;
   to_program_id: number;
   ratio: string;
+  transfer_time_hours: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type BookableOption = {
@@ -44,21 +63,33 @@ export type Flight = {
   id: number;
   airline: string;
   flight_number: string;
-  origin: string;
-  destination: string;
+  origin_code: string;
+  destination_code: string;
   departure_time: string;
   arrival_time: string;
-  cabin_class: string;
+  cabin_class: 'Economy' | 'Business' | 'First';
   points_required: number;
-  bookable_programs: number[];
-  bookable_options: BookableOption[];
-  origin_timezone?: string;
-  destination_timezone?: string;
+  created_at: string;
+  updated_at: string;
+  // Computed fields for backward compatibility
+  origin?: string;
+  destination?: string;
+  bookable_options?: BookableOption[];
 };
 
 export type FlightProgram = {
   flight_id: number;
   program_id: number;
+  points_required: number;
+  created_at: string;
+};
+
+export type UserPoints = {
+  user_id: string;
+  program_id: number;
+  points: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ItinerarySegment = {
@@ -69,7 +100,7 @@ export type ItinerarySegment = {
 };
 
 export type Itinerary = {
-  id: number;
+  itinerary_id: number;
   origin: string;
   destination: string;
   departure_time: string;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Program } from "@/lib/supabase";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,18 @@ interface PointsBalanceProps {
 }
 
 export const PointsBalance: React.FC<PointsBalanceProps> = ({ programs, userPoints, onChange, error }) => {
+  const [focusedInput, setFocusedInput] = useState<number | null>(null);
+  
   if (!programs || programs.length === 0) return null;
+
+  const formatDisplayValue = (value: number, programId: number) => {
+    // If this input is focused, show raw number for editing
+    if (focusedInput === programId) {
+      return value || "";
+    }
+    // Otherwise show formatted number with commas
+    return value ? value.toLocaleString() : "";
+  };
   return (
     <div className="mb-6">
       <h2 className="text-lg font-semibold mb-2">Your Points Balances</h2>
@@ -22,13 +33,43 @@ export const PointsBalance: React.FC<PointsBalanceProps> = ({ programs, userPoin
             <Label htmlFor={`points-${program.id}`} className="w-40">{program.name}</Label>
             <Input
               id={`points-${program.id}`}
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
               placeholder="0"
-              value={userPoints[program.id] ?? ""}
+              value={formatDisplayValue(userPoints[program.id] || 0, program.id)}
+              onFocus={() => setFocusedInput(program.id)}
+              onBlur={() => setFocusedInput(null)}
               onChange={(e) => {
-                const val = Math.max(0, Math.floor(Number(e.target.value) || 0));
-                onChange(program.id, val);
+                const inputValue = e.target.value;
+                
+                // Remove any non-digit characters (commas, spaces, etc.)
+                const cleanValue = inputValue.replace(/\D/g, '');
+                
+                // Convert to number and update
+                const numValue = cleanValue === "" ? 0 : parseInt(cleanValue, 10);
+                onChange(program.id, numValue);
+              }}
+              onKeyDown={(e) => {
+                // Allow navigation and control keys
+                const allowedKeys = [
+                  'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
+                  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                  'Home', 'End'
+                ];
+                
+                if (allowedKeys.includes(e.key)) {
+                  return;
+                }
+                
+                // Allow Ctrl+A, Ctrl+C, Ctrl+V, etc.
+                if (e.ctrlKey || e.metaKey) {
+                  return;
+                }
+                
+                // Only allow digits
+                if (!/^\d$/.test(e.key)) {
+                  e.preventDefault();
+                }
               }}
               className="w-32"
             />

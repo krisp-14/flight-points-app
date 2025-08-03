@@ -1,6 +1,11 @@
-import { formatInTimeZone } from "date-fns-tz";
+import React from "react";
 import type { Itinerary } from "@/lib/supabase";
 import { getBookableProgramsForItinerary } from "@/lib/logic/itineraryBookability";
+import { 
+  formatFlightTimeDisplay, 
+  formatFlightDuration, 
+  isSameDayArrival 
+} from "@/lib/utils";
 
 interface ItineraryCardProps {
   itinerary: Itinerary;
@@ -16,13 +21,34 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ itinerary, userPoi
   // Route string
   const route = [itinerary.origin, ...itinerary.segments.map(s => s.flight.destination)].join(" → ");
 
-  // Total duration
-  const dep = new Date(itinerary.departure_time);
-  const arr = new Date(itinerary.arrival_time);
-  const durationMs = arr.getTime() - dep.getTime();
-  const durationHrs = Math.floor(durationMs / (1000 * 60 * 60));
-  const durationMin = Math.floor((durationMs / (1000 * 60)) % 60);
-  const durationStr = `${durationHrs}h ${durationMin}m`;
+  // Get timezone info from first segment
+  const firstSegment = itinerary.segments[0];
+  const originTimezone = firstSegment.origin_timezone;
+  const destinationTimezone = firstSegment.destination_timezone;
+
+  // Format departure and arrival times in local timezones
+  const departureDisplay = formatFlightTimeDisplay(
+    itinerary.departure_time, 
+    originTimezone, 
+    true // show date
+  );
+  
+  const arrivalDisplay = formatFlightTimeDisplay(
+    itinerary.arrival_time, 
+    destinationTimezone, 
+    true // show date
+  );
+
+  // Calculate flight duration
+  const durationStr = formatFlightDuration(itinerary.departure_time, itinerary.arrival_time);
+
+  // Check if arrival is same day
+  const sameDay = isSameDayArrival(
+    itinerary.departure_time, 
+    itinerary.arrival_time, 
+    originTimezone, 
+    destinationTimezone
+  );
 
   return (
     <div
@@ -30,26 +56,36 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ itinerary, userPoi
       onClick={onSelect}
     >
       <div className="font-semibold text-lg mb-1">{route}</div>
+      
       <div className="text-sm text-gray-500 mb-2">
-        Departs {formatInTimeZone(dep, itinerary.segments[0].origin_timezone, "MMM d, h:mm a zzz")}
-        &middot; Duration: {durationStr}
+        <div>Depart: {departureDisplay}</div>
+        <div>Arrive: {arrivalDisplay} {!sameDay && "(next day)"}</div>
+        <div>Duration: {durationStr}</div>
       </div>
+      
       <div>
         {itinerary.segments.map(seg => (
-          <div key={seg.segment_number} className="text-xs text-gray-700">
-            Segment {seg.segment_number}: {seg.flight.airline} {seg.flight.flight_number}{" "}
-            {seg.flight.origin} → {seg.flight.destination}{" "}
-            ({formatInTimeZone(new Date(seg.flight.departure_time), seg.origin_timezone, "h:mm a zzz")}
-            &rarr; {formatInTimeZone(new Date(seg.flight.arrival_time), seg.destination_timezone, "h:mm a zzz")})
+          <div key={seg.segment_number} className="text-xs text-gray-700 mb-1">
+            <div className="font-medium">
+              Segment {seg.segment_number}: {seg.flight.airline} {seg.flight.flight_number}
+            </div>
+            <div>
+              {seg.flight.origin} → {seg.flight.destination}
+            </div>
+            <div>
+              {formatFlightTimeDisplay(seg.flight.departure_time, seg.origin_timezone)} → 
+              {formatFlightTimeDisplay(seg.flight.arrival_time, seg.destination_timezone)}
+            </div>
           </div>
         ))}
       </div>
-      <div className="mt-2">
-        <ul>
+      
+      <div className="mt-3 pt-2 border-t">
+        <div className="text-sm font-medium mb-1">Booking Options:</div>
+        <ul className="text-xs">
           {bookablePrograms.length > 0 ? (
             bookablePrograms.map(opt => (
               <li key={opt.program_id} className={opt.canBook ? "text-green-600 font-bold" : "text-gray-600"}>
-                {/* You can add a logo here if you have one for the program */}
                 {opt.total_points.toLocaleString()} {opt.program_name} points
                 {opt.canBook && " (You can book)"}
               </li>
