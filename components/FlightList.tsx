@@ -1,5 +1,5 @@
 import React from "react";
-import type { Flight } from "@/lib/supabase";
+import type { Flight } from "@/lib/database/supabase";
 import { FlightCard } from "@/components/flight-card";
 
 interface FlightListProps {

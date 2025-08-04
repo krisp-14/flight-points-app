@@ -1,6 +1,6 @@
 import { Check, Clock, ExternalLink, Percent } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { Program } from "@/lib/supabase"
+import type { Program } from "@/lib/database/supabase"
 
 type TransferPathStepperProps = {
   path:

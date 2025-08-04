@@ -1,6 +1,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { RouteData, CITY_METADATA, getAvailableDates, formatAvailableDates } from "@/lib/route-data";
+import type { RouteData } from "@/lib/core/types";
+import { CITY_METADATA, getAvailableDates, formatAvailableDates } from "@/lib/features/routes";
 
 interface RouteCardProps {
   route: RouteData;

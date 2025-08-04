@@ -1,11 +1,14 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
-import { format } from "date-fns";
-import { getPrograms, searchFlights, findTransferPath, getUserPoints, saveUserPoints, searchItineraries } from "./actions";
-import type { Program, Flight, Itinerary } from "@/lib/supabase";
-import type { Airport } from "../lib/types";
-import { canBook } from "@/lib/logic/canBook";
+import React from "react";
+import { canBook } from "@/lib/database/logic/canBook";
+// Feature imports
+import { usePointsManagement } from "@/lib/features/points";
+import { useProgramsData } from "@/lib/features/programs";
+import { useFormState } from "@/lib/features/routes";
+import { useFlightSearch } from "@/lib/features/flights";
+import type { Flight } from "@/lib/database/supabase";
+import { DEFAULT_USER_ID } from "@/lib/core";
 // Modular UI components
 import { PointsBalance } from "@/components/PointsBalance";
 import { TransferPathPanel } from "@/components/TransferPathPanel";
@@ -14,189 +17,59 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { EmptyState } from "@/components/empty-state";
 import { ItineraryCard } from "@/components/itineraryCard";
 import { RouteGrid } from "@/components/RouteGrid";
-import { CITY_METADATA } from "@/lib/route-data";
-
-// Debounce utility
-function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
-  React.useEffect(() => {
-    const handler = setTimeout(() => effect(), delay);
-    return () => clearTimeout(handler);
-  }, [...deps, delay]);
-}
 
 
 export default function FlightPointsOptimizer() {
-  // Form state
-  // Use selectedOrigin and selectedDestination from AirportCombobox
-  const [date, setDate] = useState<Date>()
-  const [sourceProgram, setSourceProgram] = useState<number | "">("")
-  const [optimizationMode, setOptimizationMode] = useState("value")
   // Placeholder userId for now (replace with real user ID if you have auth)
-  const userId = "00000000-0000-0000-0000-000000000001";
+  const userId = DEFAULT_USER_ID;
 
-  // Data state
-  const [programs, setPrograms] = useState<Program[]>([])
-  const [flights, setFlights] = useState<Flight[]>([])
-  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null)
-  const [transferPath, setTransferPath] = useState<any>(null)
-  const [userPoints, setUserPoints] = useState<{ [programId: number]: number }>({});
-  const [pointsError, setPointsError] = useState<string | null>(null);
+  // Custom hooks
+  const { userPoints, pointsError, updateUserPoints } = usePointsManagement(userId);
+  const { programs, isLoadingPrograms, dbError } = useProgramsData();
+  const {
+    selectedOrigin,
+    selectedDestination,
+    date,
+    sourceProgram,
+    optimizationMode,
+    setSelectedOrigin,
+    setSelectedDestination,
+    setDate,
+    setSourceProgram,
+    setOptimizationMode,
+    handleRouteSelect,
+    isFormValid
+  } = useFormState();
+  const {
+    itineraries,
+    selectedItinerary,
+    selectedFlight,
+    transferPath,
+    isSearching,
+    isFindingPath,
+    searchPerformed,
+    errorType,
+    setSelectedItinerary,
+    searchForItineraries,
+    selectFlight,
+    retry
+  } = useFlightSearch();
 
-  // Add state for itineraries and selectedItinerary
-  const [itineraries, setItineraries] = useState<Itinerary[]>([]);
-  const [selectedItinerary, setSelectedItinerary] = useState<Itinerary | null>(null);
-
-  // UI state
-  const [isLoadingPrograms, setIsLoadingPrograms] = useState(true)
-  const [isSearching, setIsSearching] = useState(false)
-  const [isFindingPath, setIsFindingPath] = useState(false)
-  const [searchPerformed, setSearchPerformed] = useState(false)
-  const [errorType, setErrorType] = useState<"no-flights" | "no-path" | null>(null)
-  const [dbError, setDbError] = useState<string | null>(null)
-
-  // Fetch programs on component mount
-  useEffect(() => {
-    async function fetchPrograms() {
-      try {
-        setIsLoadingPrograms(true)
-        const data = await getPrograms()
-        console.log("Fetched programs:", data) // Debug log
-        setPrograms(data)
-        setDbError(null)
-      } catch (error) {
-        console.error("Error fetching programs:", error)
-        setDbError("Failed to load loyalty programs. Using mock data instead.")
-        // Set mock programs as fallback
-        setPrograms([ 
-          { id: 1, name: "Amex Membership Rewards"},
-          { id: 2, name: "RBC Avion"},
-          { id: 3, name: "CIBC Aventura"},
-          { id: 4, name: "TD Rewards"},
-          { id: 5, name: "Aeroplan"},
-          { id: 6, name: "Marriott Bonvoy"},
-        ])
-      } finally {
-        setIsLoadingPrograms(false)
-      }
-    }
-    fetchPrograms()
-  }, [])
-
-  // Fetch user points on mount
-  useEffect(() => {
-    async function fetchPoints() {
-      try {
-        const points = await getUserPoints(userId);
-        setUserPoints(points);
-      } catch (err) {
-        setPointsError("Failed to load your points balances.");
-      }
-    }
-    fetchPoints();
-  }, [userId]);
-
-  // Save user points when they change (debounced)
-  useDebouncedEffect(() => {
-    async function savePoints() {
-      try {
-        await saveUserPoints(userId, userPoints);
-        setPointsError(null);
-      } catch (err) {
-        setPointsError("Failed to save your points balances.");
-      }
-    }
-    if (Object.keys(userPoints).length > 0) {
-      savePoints();
-    }
-  }, [userPoints, userId], 500);
-
-  // Replace flight search logic with itinerary search
+  // Handler functions
   const handleSearch = async () => {
-    if (!selectedOrigin?.code || !selectedDestination?.code || !date) return;
-    setIsSearching(true);
-    setSearchPerformed(true);
-    setSelectedItinerary(null);
-    setTransferPath(null);
-    setErrorType(null);
-    setItineraries([]);
-    try {
-      const formattedDate = format(date, "yyyy-MM-dd");
-      const itineraryResults = await searchItineraries(selectedOrigin.code, selectedDestination.code, formattedDate);
-      setItineraries(itineraryResults);
-      if (itineraryResults.length === 0) {
-        setErrorType("no-flights");
-      }
-    } catch (error) {
-      console.error("Error searching itineraries:", error);
-      setErrorType("no-flights");
-    } finally {
-      setIsSearching(false);
-    }
+    if (!isFormValid) return;
+    await searchForItineraries(selectedOrigin!.code, selectedDestination!.code, date!);
   };
+
+
 
   const handleFlightSelect = async (flight: Flight) => {
-    setSelectedFlight(flight)
-    setTransferPath(null)
-    setErrorType(null)
-    setIsFindingPath(true)
-
-    try {
-      // Pass userPoints as the fourth argument
-      const result = await findTransferPath(
-        Number(sourceProgram),
-        flight.bookable_programs,
-        optimizationMode,
-        userPoints
-      );
-      setTransferPath(result.path);
-      if (result.errorType) {
-        setErrorType(result.errorType);
-      }
-    } catch (error) {
-      console.error("Error finding transfer path:", error)
-      setErrorType("no-path")
-    } finally {
-      setIsFindingPath(false)
-    }
-  }
-
-  const handleRetry = () => {
-    setSearchPerformed(false)
-    setErrorType(null)
-    setSelectedFlight(null)
-    setTransferPath(null)
-  }
-
-  // Debug log for programs
-  console.log("Current programs state:", programs)
-  console.log("Current sourceProgram state:", sourceProgram)
-
-  const [selectedOrigin, setSelectedOrigin] = useState<Airport | null>(null);
-  const [selectedDestination, setSelectedDestination] = useState<Airport | null>(null);
-
-  // Route selection handler for RouteGrid
-  const handleRouteSelect = (origin: string, destination: string, availableDates: Date[]) => {
-    const originCity = CITY_METADATA[origin];
-    const destinationCity = CITY_METADATA[destination];
-    
-    if (originCity && destinationCity) {
-      setSelectedOrigin({
-        code: origin,
-        city: originCity.city,
-        country: originCity.country,
-      });
-      setSelectedDestination({
-        code: destination,
-        city: destinationCity.city,
-        country: destinationCity.country,
-      });
-      
-      // Set the earliest available flight date
-      if (availableDates.length > 0) {
-        setDate(availableDates[0]);
-      }
-    }
+    await selectFlight(flight, Number(sourceProgram), optimizationMode, userPoints);
   };
+
+
+
+
 
 
   return (
@@ -241,9 +114,7 @@ export default function FlightPointsOptimizer() {
             programs={programs}
             userPoints={userPoints}
             error={pointsError || undefined}
-            onChange={(programId, value) =>
-              setUserPoints((prev) => ({ ...prev, [programId]: value }))
-            }
+            onChange={updateUserPoints}
           />
         </CardContent>
       </Card>
@@ -262,11 +133,11 @@ export default function FlightPointsOptimizer() {
                   <CardContent>
                     {itineraries.map(itinerary => (
                       <ItineraryCard
-                        key={itinerary.id}
+                        key={itinerary.itinerary_id}
                         itinerary={itinerary}
                         userPoints={userPoints}
                         onSelect={() => setSelectedItinerary(itinerary)}
-                        selected={selectedItinerary?.id === itinerary.id}
+                        selected={selectedItinerary?.itinerary_id === itinerary.itinerary_id}
                       />
                     ))}
                   </CardContent>
@@ -282,7 +153,7 @@ export default function FlightPointsOptimizer() {
                   origin={selectedOrigin?.city || ""}
                   destination={selectedDestination?.city || ""}
                   date={date}
-                  onRetry={handleRetry}
+                  onRetry={retry}
                   optimizationMode={optimizationMode}
                 />
               </div>
@@ -293,7 +164,7 @@ export default function FlightPointsOptimizer() {
               origin={selectedOrigin?.city || ""}
               destination={selectedDestination?.city || ""}
               date={date}
-              onRetry={handleRetry}
+              onRetry={retry}
             />
           )}
         </>

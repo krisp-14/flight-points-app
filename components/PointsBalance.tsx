@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { Program } from "@/lib/supabase";
+import type { Program } from "@/lib/database/supabase";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 

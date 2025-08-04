@@ -1,5 +1,5 @@
 import React from "react";
-import type { Flight } from "@/lib/supabase";
+import type { Flight } from "@/lib/database/supabase";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";

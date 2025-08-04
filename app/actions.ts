@@ -1,7 +1,7 @@
 "use server"
 
-import { getSupabaseClient, type Program, type Flight } from "@/lib/supabase"
-import type { Itinerary } from "@/lib/supabase";
+import { getSupabaseClient, type Program, type Flight } from "@/lib/database/supabase"
+import type { Itinerary } from "@/lib/database/supabase";
 
 export async function getPrograms(): Promise<Program[]> {
   try {

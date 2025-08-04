@@ -1,6 +1,6 @@
 import React from "react";
-import type { Airport } from "@/lib/types";
-import type { Program } from "@/lib/supabase";
+import type { Airport } from "@/lib/core/types";
+import type { Program } from "@/lib/database/supabase";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";

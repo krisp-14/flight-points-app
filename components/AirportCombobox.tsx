@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Combobox } from "@headlessui/react";
-import { supabase } from "../lib/supabase"; // Adjust path as needed
-import type { Airport } from "../lib/types";
+import { supabase } from "@/lib/database/supabase"; // Adjust path as needed
+import type { Airport } from "@/lib/core/types";
 
 type AirportComboboxProps = {
   label: string;

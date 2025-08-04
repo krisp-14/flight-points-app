@@ -1,6 +1,6 @@
 import React from "react";
 import { RouteCard } from "./RouteCard";
-import { POPULAR_ROUTES } from "@/lib/route-data";
+import { POPULAR_ROUTES } from "@/lib/features/routes";
 
 interface RouteGridProps {
   onRouteSelect: (origin: string, destination: string, availableDates: Date[]) => void;

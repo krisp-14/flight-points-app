@@ -1,20 +1,5 @@
 // Route data and city metadata for the route selection grid
-
-export interface RouteData {
-  origin_code: string;
-  destination_code: string;
-  available_flights: number;
-  avg_points: number;
-  program_options: number;
-  earliest_flight: string;
-  latest_flight: string;
-}
-
-export interface CityMetadata {
-  city: string;
-  country: string;
-  region: string;
-}
+import type { RouteData, CityMetadata } from '../../core/types';
 
 // City metadata mapping
 export const CITY_METADATA: Record<string, CityMetadata> = {

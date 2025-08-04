@@ -1,11 +1,11 @@
 import React from "react";
-import type { Itinerary } from "@/lib/supabase";
-import { getBookableProgramsForItinerary } from "@/lib/logic/itineraryBookability";
+import type { Itinerary } from "@/lib/database/supabase";
+import { getBookableProgramsForItinerary } from "@/lib/database/logic/itineraryBookability";
 import { 
   formatFlightTimeDisplay, 
   formatFlightDuration, 
   isSameDayArrival 
-} from "@/lib/utils";
+} from "@/lib/shared/utils";
 
 interface ItineraryCardProps {
   itinerary: Itinerary;

@@ -26,7 +26,12 @@ export function getBookableProgramsForItinerary(
     let program_name = "";
     let canBook = true;
     for (const seg of itinerary.segments) {
-      const opt = seg.flight.bookable_options.find(o => o.program_id === program_id);
+      const bookableOptions = seg.flight.bookable_options;
+      if (!bookableOptions) {
+        canBook = false;
+        break;
+      }
+      const opt = bookableOptions.find(o => o.program_id === program_id);
       if (!opt || typeof opt.points_required !== "number") {
         canBook = false;
         break;

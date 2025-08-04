@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react";
-import type { Flight } from "@/lib/supabase";
+import type { Flight } from "@/lib/database/supabase";
 import { formatInTimeZone } from "date-fns-tz";
 
 interface FlightCardProps {
@@ -18,8 +18,8 @@ export const FlightCard: React.FC<FlightCardProps> = ({ flight, selected, onSele
     .join(" or ");
 
   const dep = new Date(flight.departure_time);
-  const originTz = flight.origin_timezone || "UTC";
-  const depStr = formatInTimeZone(dep, originTz, "MMM d, h:mm a zzz");
+  // TODO: Add timezone support when origin_timezone is added to Flight type
+  const depStr = formatInTimeZone(dep, "UTC", "MMM d, h:mm a zzz");
 
   const arr = new Date(flight.arrival_time);
   const durationMs = arr.getTime() - dep.getTime();
