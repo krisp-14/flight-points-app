@@ -83,7 +83,7 @@ export default function FlightPointsOptimizer() {
       )}
 
       {/* Route Selection Grid */}
-      <div className="mb-8">
+      <div className="mb-12 px-2">
         <RouteGrid onRouteSelect={handleRouteSelect} />
       </div>
 

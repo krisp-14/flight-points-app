@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { Flight } from "@/lib/database/supabase";
-import { formatInTimeZone } from "date-fns-tz";
+import { formatFlightTimeDisplay, formatFlightDuration, getTimezoneForAirport } from "@/lib/shared/utils";
 
 interface FlightCardProps {
   flight: Flight;
@@ -17,15 +17,18 @@ export const FlightCard: React.FC<FlightCardProps> = ({ flight, selected, onSele
     .map(opt => `${opt.points_required.toLocaleString()} ${opt.program_name} points`)
     .join(" or ");
 
-  const dep = new Date(flight.departure_time);
-  // TODO: Add timezone support when origin_timezone is added to Flight type
-  const depStr = formatInTimeZone(dep, "UTC", "MMM d, h:mm a zzz");
-
-  const arr = new Date(flight.arrival_time);
-  const durationMs = arr.getTime() - dep.getTime();
-  const durationHrs = Math.floor(durationMs / (1000 * 60 * 60));
-  const durationMin = Math.floor((durationMs / (1000 * 60)) % 60);
-  const durationStr = `${durationHrs}h ${durationMin}m`;
+  // Get proper timezones for origin and destination
+  const originTimezone = getTimezoneForAirport(flight.origin_code);
+  const destinationTimezone = getTimezoneForAirport(flight.destination_code);
+  
+  // Format departure time in origin timezone
+  const depStr = formatFlightTimeDisplay(flight.departure_time, originTimezone, true);
+  
+  // Format arrival time in destination timezone  
+  const arrStr = formatFlightTimeDisplay(flight.arrival_time, destinationTimezone, true);
+  
+  // Calculate duration
+  const durationStr = formatFlightDuration(flight.departure_time, flight.arrival_time);
 
   return (
     <div
@@ -34,9 +37,12 @@ export const FlightCard: React.FC<FlightCardProps> = ({ flight, selected, onSele
     >
       <div className="flex justify-between items-center">
         <div>
-          <div>{flight.origin} → {flight.destination}</div>
+          <div>{flight.origin_code} → {flight.destination_code}</div>
           <div>
-            Departs {depStr} &middot; Duration: {durationStr}
+            Departs {depStr}
+          </div>
+          <div>
+            Arrives {arrStr} &middot; Duration: {durationStr}
           </div>
         </div>
         <div className="text-green-600 font-bold">

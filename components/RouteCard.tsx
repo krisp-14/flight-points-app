@@ -35,11 +35,11 @@ export function RouteCard({ route, onSelect }: RouteCardProps) {
 
   return (
     <Card 
-      className="relative overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg group"
+      className="relative overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group border border-gray-200 bg-white"
       onClick={handleClick}
     >
       {/* Placeholder background gradient */}
-      <div className={`h-48 w-full bg-gradient-to-br ${getPlaceholderGradient(route.destination_code)} relative`}>
+      <div className={`h-40 w-full bg-gradient-to-br ${getPlaceholderGradient(route.destination_code)} relative`}>
         {/* Overlay for text readability */}
         <div className="absolute inset-0 bg-black bg-opacity-20" />
         
@@ -58,7 +58,7 @@ export function RouteCard({ route, onSelect }: RouteCardProps) {
       </div>
 
       {/* Route and pricing info */}
-      <div className="p-4">
+      <div className="p-5">
         <div className="flex justify-between items-start mb-2">
           <div>
             <h4 className="font-semibold text-gray-900">

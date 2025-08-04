@@ -4,7 +4,8 @@ import { getBookableProgramsForItinerary } from "@/lib/database/logic/itineraryB
 import { 
   formatFlightTimeDisplay, 
   formatFlightDuration, 
-  isSameDayArrival 
+  isSameDayArrival,
+  getTimezoneForAirport
 } from "@/lib/shared/utils";
 
 interface ItineraryCardProps {
@@ -21,10 +22,16 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ itinerary, userPoi
   // Route string
   const route = [itinerary.origin, ...itinerary.segments.map(s => s.flight.destination)].join(" → ");
 
-  // Get timezone info from first segment
+  // Get timezone info using airport codes
   const firstSegment = itinerary.segments[0];
-  const originTimezone = firstSegment.origin_timezone;
-  const destinationTimezone = firstSegment.destination_timezone;
+  const lastSegment = itinerary.segments[itinerary.segments.length - 1];
+  
+  // Try to get airport codes from flight data, fallback to itinerary origin/destination
+  const originCode = firstSegment.flight.origin_code || itinerary.origin;
+  const destinationCode = lastSegment.flight.destination_code || itinerary.destination;
+  
+  const originTimezone = getTimezoneForAirport(originCode);
+  const destinationTimezone = getTimezoneForAirport(destinationCode);
 
   // Format departure and arrival times in local timezones
   const departureDisplay = formatFlightTimeDisplay(
@@ -73,8 +80,8 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = ({ itinerary, userPoi
               {seg.flight.origin} → {seg.flight.destination}
             </div>
             <div>
-              {formatFlightTimeDisplay(seg.flight.departure_time, seg.origin_timezone)} → 
-              {formatFlightTimeDisplay(seg.flight.arrival_time, seg.destination_timezone)}
+              {formatFlightTimeDisplay(seg.flight.departure_time, getTimezoneForAirport(seg.flight.origin_code || seg.flight.origin))} → 
+              {formatFlightTimeDisplay(seg.flight.arrival_time, getTimezoneForAirport(seg.flight.destination_code || seg.flight.destination))}
             </div>
           </div>
         ))}

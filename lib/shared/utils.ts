@@ -10,6 +10,36 @@ export function cn(...inputs: ClassValue[]) {
 // TIMEZONE UTILITIES FOR FLIGHT DISPLAY
 // =============================================================================
 
+// Simple airport timezone mapping (most common ones)
+const BASIC_AIRPORT_TIMEZONES: Record<string, string> = {
+  'YYZ': 'America/Toronto',
+  'YUL': 'America/Montreal',  
+  'YVR': 'America/Vancouver',
+  'LHR': 'Europe/London',
+  'CDG': 'Europe/Paris',
+  'FRA': 'Europe/Berlin',
+  'AMS': 'Europe/Amsterdam',
+  'JFK': 'America/New_York',
+  'LAX': 'America/Los_Angeles',
+  'NRT': 'Asia/Tokyo',
+  'ICN': 'Asia/Seoul',
+  'SIN': 'Asia/Singapore',
+  'DXB': 'Asia/Dubai',
+  'SYD': 'Australia/Sydney',
+  'BOS': 'America/New_York',
+  'ATH': 'Europe/Athens',
+};
+
+/**
+ * Get timezone for airport code (simple version)
+ */
+export function getTimezoneForAirport(airportCode: string | undefined): string {
+  if (!airportCode) return 'UTC';
+  const upperCode = airportCode.toUpperCase();
+  const timezone = BASIC_AIRPORT_TIMEZONES[upperCode];
+  return timezone || 'UTC';
+}
+
 /**
  * Convert UTC time to local airport time for display
  */
@@ -69,12 +99,21 @@ export function formatFlightTimeDisplay(
   showDate: boolean = false
 ): string {
   try {
+    // Use UTC if no timezone provided
+    if (!timezone || timezone === 'UTC') {
+      const format = showDate ? "MMM d, h:mm a" : "h:mm a"
+      const utcFormatted = formatInTimeZone(new Date(utcTime), 'UTC', format)
+      return `${utcFormatted} UTC`;
+    }
+    
     const format = showDate ? "MMM d, h:mm a" : "h:mm a"
     const localTime = formatInTimeZone(new Date(utcTime), timezone, format)
     const timezoneAbbr = formatInTimeZone(new Date(utcTime), timezone, 'zzz')
-    return `${localTime} ${timezoneAbbr}`
+    return `${localTime} ${timezoneAbbr}`;
   } catch (error) {
-    console.error('Error formatting flight time display:', error)
-    return 'Invalid time'
+    // Fallback to UTC on any error
+    const format = showDate ? "MMM d, h:mm a" : "h:mm a"
+    const utcFormatted = formatInTimeZone(new Date(utcTime), 'UTC', format)
+    return `${utcFormatted} UTC`;
   }
 }
