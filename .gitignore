@@ -31,3 +31,9 @@ next-env.d.ts
 
 # Product Requirements Document (PRD)
 Flight Points Converter PRD.pdf
+
+# EJSON - Keep encrypted files in git, exclude private keys
+.ejson/keys/
+secrets.ejson.decrypted
+*.ejson.decrypted
+PRIVATE_KEY.txt

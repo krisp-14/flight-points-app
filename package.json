@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "secrets:view": "EJSON_KEYDIR=.ejson/keys ejson decrypt secrets.ejson",
+    "secrets:env": "EJSON_KEYDIR=.ejson/keys ejson decrypt secrets.ejson | jq -r '\"NEXT_PUBLIC_SUPABASE_URL=\" + .next_public.supabase_url, \"NEXT_PUBLIC_SUPABASE_ANON_KEY=\" + .next_public.supabase_anon_key' > .env.local && echo '.env.local created successfully'"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
