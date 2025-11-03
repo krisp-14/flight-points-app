@@ -1,12 +1,12 @@
 import React from "react";
-import type { Flight } from "@/lib/database/supabase";
+import type { Itinerary } from "@/lib/database/supabase";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { TransferPathStepper } from "@/components/transfer-path-stepper";
 
 interface TransferPathPanelProps {
-  selectedFlight: Flight | null;
+  selectedItinerary: Itinerary | null;
   transferPath: any;
   isFindingPath: boolean;
   errorType: "no-flights" | "no-path" | null;
@@ -18,7 +18,7 @@ interface TransferPathPanelProps {
 }
 
 export const TransferPathPanel: React.FC<TransferPathPanelProps> = ({
-  selectedFlight,
+  selectedItinerary,
   transferPath,
   isFindingPath,
   errorType,
@@ -28,11 +28,11 @@ export const TransferPathPanel: React.FC<TransferPathPanelProps> = ({
   onRetry,
   optimizationMode,
 }) => {
-  if (!selectedFlight) {
+  if (!selectedItinerary) {
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          <p>Select a flight to see transfer options</p>
+          <p>Select an itinerary to see transfer options</p>
         </CardContent>
       </Card>
     );

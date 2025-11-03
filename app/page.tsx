@@ -52,6 +52,7 @@ export default function FlightPointsOptimizer() {
     setSelectedItinerary,
     searchForItineraries,
     selectFlight,
+    selectItinerary,
     retry
   } = useFlightSearch();
 
@@ -65,6 +66,10 @@ export default function FlightPointsOptimizer() {
 
   const handleFlightSelect = async (flight: Flight) => {
     await selectFlight(flight, Number(sourceProgram), optimizationMode, userPoints);
+  };
+
+  const handleItinerarySelect = async (itinerary: any) => {
+    await selectItinerary(itinerary, Number(sourceProgram), optimizationMode, userPoints);
   };
 
 
@@ -136,7 +141,7 @@ export default function FlightPointsOptimizer() {
                         key={itinerary.itinerary_id}
                         itinerary={itinerary}
                         userPoints={userPoints}
-                        onSelect={() => setSelectedItinerary(itinerary)}
+                        onSelect={() => handleItinerarySelect(itinerary)}
                         selected={selectedItinerary?.itinerary_id === itinerary.itinerary_id}
                       />
                     ))}
@@ -144,9 +149,8 @@ export default function FlightPointsOptimizer() {
                 </Card>
               </div>
               <div className="lg:col-span-2">
-                {/* You can update TransferPathPanel to use selectedItinerary if needed */}
                 <TransferPathPanel
-                  selectedFlight={selectedItinerary?.segments[0]?.flight || null}
+                  selectedItinerary={selectedItinerary}
                   transferPath={transferPath}
                   isFindingPath={isFindingPath}
                   errorType={errorType}

@@ -1,7 +1,8 @@
 "use server"
 
-import { getSupabaseClient, type Program, type Flight } from "@/lib/database/supabase"
+import { getSupabaseClient, type Program, type Flight, type TransferPath } from "@/lib/database/supabase"
 import type { Itinerary } from "@/lib/database/supabase";
+import { findBestTransferPath } from "@/lib/database/logic/findBestTransferPath";
 
 export async function getPrograms(): Promise<Program[]> {
   try {
@@ -81,26 +82,99 @@ export async function findTransferPath(
     if (targetPrograms.includes(sourceProgram)) {
       return { path: [], errorType: null };
     }
-    // Fetch all transfer paths from Supabase
-    const supabase = getSupabaseClient();
-    const { data: transferPaths, error } = await supabase.from("transfer_paths").select("*");
 
-    if (error || !transferPaths) {
-      console.error("Error fetching transfer paths:", error);
+    // Validate optimization mode
+    const mode = optimizationMode as "value" | "time" | "hops";
+    if (!["value", "time", "hops"].includes(mode)) {
+      console.error("Invalid optimization mode:", optimizationMode);
       return { path: null, errorType: "no-path" };
     }
 
-    const { data: programs, error: programsError } = await supabase.from("programs").select("*");
+    // Find the best transfer path using our pathfinding algorithm
+    const result = await findBestTransferPath({
+      sourceProgramId: sourceProgram,
+      destinationProgramIds: targetPrograms,
+      mode,
+    });
+
+    if (!result || result.path.length === 0) {
+      return { path: null, errorType: "no-path" };
+    }
+
+    // If path is just the source (direct booking), return empty path
+    if (result.path.length === 1) {
+      return { path: [], errorType: null };
+    }
+
+    // Fetch programs and transfer paths data to build detailed path
+    const supabase = getSupabaseClient();
+    const { data: programs, error: programsError } = await supabase
+      .from("programs")
+      .select("*");
 
     if (programsError || !programs) {
-      console.error("Error fetching programs for path finding:", programsError);
+      console.error("Error fetching programs:", programsError);
       return { path: null, errorType: "no-path" };
     }
-    const programsTyped: Program[] = programs as Program[];
 
-    // TODO: Implement real pathfinding logic here using transferPaths and programs
-    // For now, always return no-path
-    return { path: null, errorType: "no-path" };
+    const { data: transferPaths, error: transferError } = await supabase
+      .from("transfer_paths")
+      .select("*");
+
+    if (transferError || !transferPaths) {
+      console.error("Error fetching transfer paths:", transferError);
+      return { path: null, errorType: "no-path" };
+    }
+
+    // Build program lookup map
+    const programMap = new Map<number, Program>();
+    for (const prog of programs as Program[]) {
+      programMap.set(prog.id, prog);
+    }
+
+    // Build detailed path with program objects and transfer details
+    const detailedPath: {
+      from: Program;
+      to: Program;
+      ratio: string;
+      transferTime: number;
+    }[] = [];
+
+    for (let i = 0; i < result.path.length - 1; i++) {
+      const fromId = result.path[i];
+      const toId = result.path[i + 1];
+
+      const fromProgram = programMap.get(fromId);
+      const toProgram = programMap.get(toId);
+
+      if (!fromProgram || !toProgram) {
+        console.error("Program not found:", { fromId, toId });
+        continue;
+      }
+
+      // Find the transfer path details
+      const transfer = (transferPaths as TransferPath[]).find(
+        (tp) => tp.from_program_id === fromId && tp.to_program_id === toId
+      );
+
+      if (!transfer) {
+        console.error("Transfer path not found:", { fromId, toId });
+        continue;
+      }
+
+      detailedPath.push({
+        from: fromProgram,
+        to: toProgram,
+        ratio: transfer.ratio,
+        transferTime: transfer.transfer_time_hours,
+      });
+    }
+
+    if (detailedPath.length === 0) {
+      return { path: null, errorType: "no-path" };
+    }
+
+    return { path: detailedPath, errorType: null };
   } catch (error) {
     console.error("Unexpected error in findTransferPath:", error);
     return { path: null, errorType: "no-path" };
