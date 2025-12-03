@@ -246,52 +246,6 @@ Test files are located in `lib/database/logic/__tests__/`
 
 ---
 
-## What I Learned
-
-Building this project taught me:
-
-### Full-Stack Development
-- Server-side rendering with Next.js 15
-- Server Actions for backend communication
-- Database design and optimization
-- Real-time data synchronization
-
-### Algorithms & Data Structures
-- Implementing Dijkstra's algorithm from scratch
-- Graph traversal techniques (BFS, DFS concepts)
-- Priority queues and heap operations
-- Time/space complexity optimization
-- Bonus threshold optimization algorithms
-
-### React & State Management
-- Custom hooks for complex state logic
-- Component composition patterns
-- Server vs. Client Components
-- Debouncing and performance optimization
-- Local storage for client-side state
-
-### TypeScript
-- Advanced type inference
-- Generic types and constraints
-- Type-safe API contracts
-- Discriminated unions
-
-### Database & Backend
-- PostgreSQL views and complex queries
-- Supabase real-time features
-- Database indexing strategies
-- Row-level security
-- Transfer bonus calculations
-
-### UI/UX
-- Responsive design principles
-- Loading states and error handling
-- Accessibility best practices
-- Design system implementation
-- Inline dropdowns vs popovers
-
----
-
 ## Roadmap
 
 - [ ] **User authentication** - Replace mock user with real auth
@@ -319,17 +273,6 @@ This is a portfolio project, but suggestions and feedback are welcome!
 ## License
 
 This is a private portfolio project. All rights reserved.
-
----
-
-## Author
-
-**[Your Name]**
-
-- Portfolio: [your-portfolio.com](#)
-- LinkedIn: [linkedin.com/in/yourprofile](#)
-- GitHub: [@yourusername](#)
-- Email: your.email@example.com
 
 ---
 
