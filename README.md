@@ -1,4 +1,4 @@
-# ✈️ Flight Points Optimizer
+# Flight Points Optimizer
 
 > **A full-stack web application that helps travelers maximize their loyalty points by finding optimal transfer paths between reward programs for booking award flights.**
 
@@ -9,53 +9,65 @@
 
 ---
 
-## 🎯 The Problem
+## The Problem
 
 Travelers with credit card or airline loyalty points often can't book their desired flights directly because:
 - They don't have enough points in the right program
 - Different programs have different transfer ratios and fees
 - Multi-step transfers are complex to calculate manually
+- Transfer bonuses (like Marriott's 60k threshold) add complexity to calculations
 
-## 💡 The Solution
+## The Solution
 
 This app automatically finds the optimal way to transfer points between programs using **graph traversal algorithms** (Dijkstra's & BFS), calculating:
-- **Best Value** - Minimize points lost in transfers
+- **Best Value** - Minimize points lost in transfers, accounting for bonus thresholds
 - **Fastest Transfer** - Minimize transfer time
 - **Fewest Steps** - Simplest transfer path
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🔍 Intelligent Flight Search
+### Intelligent Flight Search
 - Search multi-segment itineraries across loyalty programs
-- Real-time availability checking
+- Real-time availability checking with ±3 day date range
 - Timezone-aware departure/arrival times
+- Route validation against available database routes
 
-### 🧮 Points Transfer Pathfinding
+### Points Transfer Pathfinding
 - **Dijkstra's Algorithm** for optimal value and time paths
 - **Breadth-First Search (BFS)** for fewest transfer steps
+- **Bonus-aware calculations** - Automatically optimizes transfer amounts to hit bonus thresholds (e.g., 60k Marriott for +5k bonus)
 - Automatic affordability calculations
-- Visual step-by-step transfer plans
+- Visual step-by-step transfer plans with bonus mile indicators
 
-### 💳 Points Balance Management
+### Points Balance Management
 - Track points across multiple programs
-- Auto-save with debouncing (500ms)
+- Inline dropdown editor for easy point updates
+- Auto-calculated total points (sum of all programs)
 - Real-time bookability indicators
 
-### 📊 Smart Recommendations
+### Explore & Discovery
+- Browse available routes from database
+- Recent searches tracking (last 3 routes viewed)
+- Quick navigation to previously explored routes
+- Route cards showing earliest departure dates and option counts
+
+### Smart Recommendations
 - Color-coded transfer efficiency (1:1 = green, 2:1 = red)
 - Detailed points calculations at each transfer step
+- Bonus miles displayed with visual indicators
 - Transfer time warnings for slow transfers (>72 hours)
 
-### 🎨 Modern UI/UX
+### Modern UI/UX
 - 50+ Radix UI components with Tailwind CSS
 - Loading states and error boundaries
 - Responsive design for mobile/tablet/desktop
+- Simplified search form with route validation
 
 ---
 
-## 🛠️ Technical Highlights
+## Technical Highlights
 
 ### Architecture
 - **Feature-based organization** with custom React hooks for state management
@@ -66,15 +78,17 @@ This app automatically finds the optimal way to transfer points between programs
 
 ### Algorithms
 Implemented classic computer science algorithms from scratch:
-- **Dijkstra's Algorithm** - Single-source shortest path (weighted graph)
+- **Dijkstra's Algorithm** - Single-source shortest path (weighted graph) with bonus-aware edge weights
 - **BFS (Breadth-First Search)** - Shortest path by number of steps
-- **Priority Queue** - Custom implementation for optimal pathfinding
+- **Priority Queue** - Custom binary min-heap implementation for optimal pathfinding
 - **Graph construction** - Adjacency list from relational data
+- **Bonus optimization** - Calculates optimal transfer amounts to maximize bonus miles
 
 ### Database Design
 - **PostgreSQL** via Supabase with complex views
-- **Normalized schema** (programs, flights, transfer_paths, user_points)
+- **Normalized schema** (programs, flights, transfer_paths, user_points, airports)
 - **Computed views** for multi-segment itinerary queries
+- **Transfer bonuses** - bonus_threshold, bonus_amount, bonus_applies columns
 - **Efficient indexing** for fast lookups
 
 ### Code Quality
@@ -82,10 +96,11 @@ Implemented classic computer science algorithms from scratch:
 - **Modular architecture** - easy to test and maintain
 - **Separation of concerns** - UI, business logic, data layers
 - **Error handling** throughout with graceful fallbacks
+- **Client-side caching** for airport searches and recent routes
 
 ---
 
-## 🚀 Live Demo
+## Live Demo
 
 <!-- TODO: Add deployed link -->
 [View Live Demo](#) | [Watch Video Walkthrough](#)
@@ -97,7 +112,7 @@ _Coming soon: Search interface, transfer path visualization, points management_
 
 ---
 
-## 💻 Tech Stack
+## Tech Stack
 
 | Category | Technologies |
 |----------|-------------|
@@ -111,28 +126,39 @@ _Coming soon: Search interface, transfer path visualization, points management_
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ├── app/                    # Next.js App Router
-│   ├── page.tsx           # Main application
+│   ├── page.tsx           # Homepage with search form
+│   ├── explore/           # Explore available routes
+│   │   └── page.tsx
+│   ├── search/            # Search results page
+│   │   └── page.tsx
 │   ├── actions.ts         # Server-side data fetching
-│   └── layout.tsx         # Root layout
+│   └── layout.tsx         # Root layout with header
 │
 ├── lib/
 │   ├── core/              # Constants, types, configuration
 │   ├── database/          # Supabase client & business logic
+│   │   ├── cache.ts      # Server-side caching
 │   │   └── logic/         # Pathfinding algorithms
+│   │       └── findBestTransferPath.ts  # Dijkstra's & BFS with bonus calculations
 │   ├── features/          # Feature modules (custom hooks)
 │   │   ├── flights/       # Search & transfer path logic
 │   │   ├── points/        # Points management
 │   │   ├── programs/      # Loyalty programs data
-│   │   └── routes/        # Search form state
+│   │   └── routes/        # Recent routes tracking
 │   └── shared/            # Utilities & API layer
 │
 ├── components/            # React components
 │   ├── ui/               # shadcn/ui components (50+)
-│   └── [features]/       # Feature-specific components
+│   ├── Header.tsx        # App header with points display
+│   ├── SearchForm.tsx    # Simplified search with validation
+│   ├── PointsBalance.tsx # Inline dropdown points editor
+│   ├── ItineraryCard.tsx # Flight itinerary display
+│   ├── TransferPathPanel.tsx # Transfer path container
+│   └── transfer-path-stepper.tsx # Step-by-step visualization
 │
 └── supabase/             # Database configuration
 ```
@@ -141,7 +167,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed explanation of how everyth
 
 ---
 
-## 🔧 Local Development Setup
+## Local Development Setup
 
 ### Prerequisites
 - **Node.js 18+** and npm
@@ -197,17 +223,16 @@ npm run secrets:env  # Generate .env.local from secrets
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Complete system architecture, data flow, and algorithm explanations |
-| [CLAUDE.md](./CLAUDE.md) | Development guide and codebase overview |
 | [SECRETS.md](./SECRETS.md) | EJSON secrets management guide |
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run unit tests (pathfinding algorithms)
@@ -221,7 +246,7 @@ Test files are located in `lib/database/logic/__tests__/`
 
 ---
 
-## 🎓 What I Learned
+## What I Learned
 
 Building this project taught me:
 
@@ -236,12 +261,14 @@ Building this project taught me:
 - Graph traversal techniques (BFS, DFS concepts)
 - Priority queues and heap operations
 - Time/space complexity optimization
+- Bonus threshold optimization algorithms
 
 ### React & State Management
 - Custom hooks for complex state logic
 - Component composition patterns
 - Server vs. Client Components
 - Debouncing and performance optimization
+- Local storage for client-side state
 
 ### TypeScript
 - Advanced type inference
@@ -254,18 +281,19 @@ Building this project taught me:
 - Supabase real-time features
 - Database indexing strategies
 - Row-level security
+- Transfer bonus calculations
 
 ### UI/UX
 - Responsive design principles
 - Loading states and error handling
 - Accessibility best practices
 - Design system implementation
+- Inline dropdowns vs popovers
 
 ---
 
-## 🚧 Roadmap
+## Roadmap
 
-- [ ] **Multi-page structure** - Separate landing, search, and program pages
 - [ ] **User authentication** - Replace mock user with real auth
 - [ ] **Real-time collaboration** - Share search results with shareable links
 - [ ] **Transfer path visualization** - Interactive graph showing program connections
@@ -276,7 +304,7 @@ Building this project taught me:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This is a portfolio project, but suggestions and feedback are welcome!
 
@@ -288,13 +316,13 @@ This is a portfolio project, but suggestions and feedback are welcome!
 
 ---
 
-## 📝 License
+## License
 
 This is a private portfolio project. All rights reserved.
 
 ---
 
-## 👤 Author
+## Author
 
 **[Your Name]**
 
@@ -305,7 +333,7 @@ This is a private portfolio project. All rights reserved.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by [roame.travel](https://roame.travel) and [point.me](https://point.me)
 - UI components from [shadcn/ui](https://ui.shadcn.com/)
@@ -315,8 +343,8 @@ This is a private portfolio project. All rights reserved.
 
 <div align="center">
 
-**⭐ Star this repo if you found it interesting!**
+**Star this repo if you found it interesting!**
 
-Built with ❤️ using Next.js and TypeScript
+Built with Next.js and TypeScript
 
 </div>
