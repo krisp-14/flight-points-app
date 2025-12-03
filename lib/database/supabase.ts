@@ -49,6 +49,9 @@ export type TransferPath = {
   to_program_id: number;
   ratio: string;
   transfer_time_hours: number;
+  bonus_threshold: number | null;
+  bonus_amount: number | null;
+  bonus_applies: boolean;
   created_at: string;
   updated_at: string;
 };

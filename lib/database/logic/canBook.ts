@@ -1,4 +1,4 @@
-import type { Flight } from "@/lib/supabase";
+import type { Flight } from "@/lib/database/supabase";
 
 /**
  * Returns true if the user can book the flight with any of their points balances.

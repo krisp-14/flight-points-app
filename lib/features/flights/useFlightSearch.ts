@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { searchItineraries, findTransferPath } from '../../shared/api';
+import { searchItineraries, findTransferPath, searchFlights } from '../../shared/api';
 import type { Flight, Itinerary } from '../../database/supabase';
 import { DATABASE_DATE_FORMAT } from '../../core/constants';
 import { getBookableProgramsForItinerary } from '../../database/logic/itineraryBookability';
@@ -27,15 +27,19 @@ export function useFlightSearch() {
     setIsSearching(true);
     setSearchPerformed(true);
     setSelectedItinerary(null);
+    setSelectedFlight(null);
     setTransferPath(null);
     setErrorType(null);
     setItineraries([]);
+    setFlights([]);
     
     try {
       const formattedDate = format(date, DATABASE_DATE_FORMAT);
       const itineraryResults = await searchItineraries(originCode, destinationCode, formattedDate);
+      const flightResults = await searchFlights(originCode, destinationCode, formattedDate);
       
       setItineraries(itineraryResults);
+      setFlights(flightResults);
       if (itineraryResults.length === 0) {
         setErrorType("no-flights");
       }
@@ -54,6 +58,7 @@ export function useFlightSearch() {
     userPoints: { [programId: number]: number }
   ) => {
     setSelectedFlight(flight);
+    setSelectedItinerary(null);
     setTransferPath(null);
     setErrorType(null);
     setIsFindingPath(true);
@@ -85,6 +90,7 @@ export function useFlightSearch() {
     userPoints: { [programId: number]: number }
   ) => {
     setSelectedItinerary(itinerary);
+    setSelectedFlight(null);
     setTransferPath(null);
     setErrorType(null);
     setIsFindingPath(true);

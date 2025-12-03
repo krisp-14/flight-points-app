@@ -19,8 +19,87 @@ export const SUPABASE_TABLES = {
   FLIGHTS: "flights",
   ITINERARIES: "itineraries_with_segments",
   USER_POINTS: "user_points",
-  FLIGHT_PROGRAMS: "flight_programs"
+  FLIGHT_PROGRAMS: "flight_programs",
+  AIRPORTS: "airports"
 } as const;
+
+// Region mapping for Explore mode
+export const REGION_BY_AIRPORT: Record<string, "North America" | "South America" | "Europe" | "Asia" | "Africa" | "Oceania" | "Middle East"> = {
+  // North America
+  YYZ: "North America",
+  YUL: "North America",
+  YVR: "North America",
+  JFK: "North America",
+  LAX: "North America",
+  ORD: "North America",
+  DFW: "North America",
+  DEN: "North America",
+  SEA: "North America",
+  SFO: "North America",
+  BOS: "North America",
+  MIA: "North America",
+  ATL: "North America",
+  IAH: "North America",
+
+  // Europe
+  LHR: "Europe",
+  LGW: "Europe",
+  CDG: "Europe",
+  ORY: "Europe",
+  FRA: "Europe",
+  MUC: "Europe",
+  AMS: "Europe",
+  MAD: "Europe",
+  BCN: "Europe",
+  FCO: "Europe",
+  MXP: "Europe",
+  ZRH: "Europe",
+  VIE: "Europe",
+  CPH: "Europe",
+  OSL: "Europe",
+  ARN: "Europe",
+  HEL: "Europe",
+  WAW: "Europe",
+  ATH: "Europe",
+  DUB: "Europe",
+
+  // Asia
+  NRT: "Asia",
+  HND: "Asia",
+  ICN: "Asia",
+  PVG: "Asia",
+  PEK: "Asia",
+  HKG: "Asia",
+  SIN: "Asia",
+  BKK: "Asia",
+  DEL: "Asia",
+  BOM: "Asia",
+  TPE: "Asia",
+  KUL: "Asia",
+
+  // Oceania
+  SYD: "Oceania",
+  MEL: "Oceania",
+  AKL: "Oceania",
+
+  // Middle East
+  DXB: "Middle East",
+  DOH: "Middle East",
+  AUH: "Middle East",
+
+  // Africa
+  CAI: "Africa",
+  JNB: "Africa",
+  CPT: "Africa",
+
+  // South America
+  GRU: "South America",
+  GIG: "South America",
+  EZE: "South America",
+  SCL: "South America",
+  BOG: "South America",
+  LIM: "South America",
+};
 
 // UI Configuration
 export const OPTIMIZATION_MODES = {

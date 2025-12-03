@@ -5,32 +5,71 @@ import type { TransferPath } from "@/lib/database/supabase";
 // PRIORITY QUEUE (for Dijkstra's algorithm)
 // =============================================================================
 
+// Binary min-heap implementation for O(log n) insertions
 class PriorityQueue<T> {
-  private items: Array<{ element: T; priority: number }> = [];
+  private heap: Array<{ element: T; priority: number }> = [];
 
-  enqueue(element: T, priority: number) {
-    const queueElement = { element, priority };
-    let added = false;
+  private parent(i: number): number {
+    return Math.floor((i - 1) / 2);
+  }
 
-    for (let i = 0; i < this.items.length; i++) {
-      if (queueElement.priority < this.items[i].priority) {
-        this.items.splice(i, 0, queueElement);
-        added = true;
-        break;
+  private leftChild(i: number): number {
+    return 2 * i + 1;
+  }
+
+  private rightChild(i: number): number {
+    return 2 * i + 2;
+  }
+
+  private swap(i: number, j: number): void {
+    [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+  }
+
+  private bubbleUp(index: number): void {
+    while (index > 0) {
+      const parentIndex = this.parent(index);
+      if (this.heap[index].priority >= this.heap[parentIndex].priority) break;
+      this.swap(index, parentIndex);
+      index = parentIndex;
+    }
+  }
+
+  private bubbleDown(index: number): void {
+    while (true) {
+      let smallest = index;
+      const left = this.leftChild(index);
+      const right = this.rightChild(index);
+
+      if (left < this.heap.length && this.heap[left].priority < this.heap[smallest].priority) {
+        smallest = left;
       }
-    }
+      if (right < this.heap.length && this.heap[right].priority < this.heap[smallest].priority) {
+        smallest = right;
+      }
+      if (smallest === index) break;
 
-    if (!added) {
-      this.items.push(queueElement);
+      this.swap(index, smallest);
+      index = smallest;
     }
+  }
+
+  enqueue(element: T, priority: number): void {
+    this.heap.push({ element, priority });
+    this.bubbleUp(this.heap.length - 1);
   }
 
   dequeue(): T | undefined {
-    return this.items.shift()?.element;
+    if (this.heap.length === 0) return undefined;
+    if (this.heap.length === 1) return this.heap.pop()?.element;
+
+    const min = this.heap[0].element;
+    this.heap[0] = this.heap.pop()!;
+    this.bubbleDown(0);
+    return min;
   }
 
   isEmpty(): boolean {
-    return this.items.length === 0;
+    return this.heap.length === 0;
   }
 }
 
@@ -49,12 +88,156 @@ function parseRatio(ratio: string): number {
 }
 
 /**
+ * Calculate total miles received including bonuses
+ * @param pointsTransferred - Amount of source points to transfer
+ * @param ratio - Transfer ratio string (e.g., "3:1")
+ * @param bonusThreshold - Points threshold for bonus (null if no bonus)
+ * @param bonusAmount - Bonus miles per threshold (null if no bonus)
+ * @param bonusApplies - Whether bonus applies
+ * @returns Total destination miles received (base + bonus)
+ */
+export function calculateTransferWithBonus(
+  pointsTransferred: number,
+  ratio: string,
+  bonusThreshold: number | null,
+  bonusAmount: number | null,
+  bonusApplies: boolean
+): number {
+  const { from: ratioFrom, to: ratioTo } = parseRatioToNumbers(ratio);
+  
+  // Base miles = (points_transferred / ratio_numerator) * ratio_denominator
+  const baseMiles = Math.floor((pointsTransferred / ratioFrom) * ratioTo);
+  
+  // Bonus miles = floor(points_transferred / bonus_threshold) * bonus_amount
+  let bonusMiles = 0;
+  if (bonusApplies && bonusThreshold && bonusAmount && bonusThreshold > 0) {
+    bonusMiles = Math.floor(pointsTransferred / bonusThreshold) * bonusAmount;
+  }
+  
+  return baseMiles + bonusMiles;
+}
+
+/**
+ * Parse ratio string to numbers (e.g., "3:1" → {from: 3, to: 1})
+ */
+function parseRatioToNumbers(ratio: string): { from: number; to: number } {
+  const parts = ratio.split(":").map(Number);
+  return { from: parts[0] || 1, to: parts[1] || 1 };
+}
+
+/**
+ * Calculate optimal transfer amount to hit bonus thresholds
+ * Returns the minimum amount to transfer that maximizes bonus efficiency
+ * @param targetMiles - Desired destination miles
+ * @param ratio - Transfer ratio string
+ * @param bonusThreshold - Points threshold for bonus
+ * @param bonusAmount - Bonus miles per threshold
+ * @param bonusApplies - Whether bonus applies
+ * @returns Optimal points to transfer
+ */
+export function calculateOptimalTransferAmount(
+  targetMiles: number,
+  ratio: string,
+  bonusThreshold: number | null,
+  bonusAmount: number | null,
+  bonusApplies: boolean
+): number {
+  const { from: ratioFrom, to: ratioTo } = parseRatioToNumbers(ratio);
+  
+  // If no bonus, calculate directly
+  if (!bonusApplies || !bonusThreshold || !bonusAmount || bonusThreshold <= 0) {
+    return Math.ceil((targetMiles * ratioFrom) / ratioTo);
+  }
+  
+  // Try different transfer amounts to find the most efficient
+  // Start with base calculation
+  let baseTransfer = Math.ceil((targetMiles * ratioFrom) / ratioTo);
+  
+  // Check if rounding up to next bonus threshold is more efficient
+  const nextThreshold = Math.ceil(baseTransfer / bonusThreshold) * bonusThreshold;
+  
+  // Calculate miles received for base and threshold amounts
+  const baseMiles = calculateTransferWithBonus(baseTransfer, ratio, bonusThreshold, bonusAmount, bonusApplies);
+  const thresholdMiles = calculateTransferWithBonus(nextThreshold, ratio, bonusThreshold, bonusAmount, bonusApplies);
+  
+  // If threshold amount gives more miles for similar cost, use it
+  if (thresholdMiles >= targetMiles && nextThreshold <= baseTransfer * 1.1) {
+    return nextThreshold;
+  }
+  
+  // Otherwise, find the minimum amount that gives us enough miles
+  let optimalTransfer = baseTransfer;
+  let currentMiles = calculateTransferWithBonus(optimalTransfer, ratio, bonusThreshold, bonusAmount, bonusApplies);
+  
+  // If we're close to a threshold, consider rounding up
+  const distanceToThreshold = nextThreshold - baseTransfer;
+  if (distanceToThreshold > 0 && distanceToThreshold <= bonusThreshold * 0.2) {
+    // If rounding up to threshold gives us enough miles and is within 20% of threshold, do it
+    if (thresholdMiles >= targetMiles) {
+      return nextThreshold;
+    }
+  }
+  
+  // Otherwise, increment until we have enough miles
+  while (currentMiles < targetMiles) {
+    optimalTransfer += 100; // Increment by 100 points
+    currentMiles = calculateTransferWithBonus(optimalTransfer, ratio, bonusThreshold, bonusAmount, bonusApplies);
+    
+    // Safety check to avoid infinite loops
+    if (optimalTransfer > targetMiles * ratioFrom * 2) {
+      break;
+    }
+  }
+  
+  return optimalTransfer;
+}
+
+/**
+ * Calculate effective ratio including bonuses (for pathfinding)
+ * Uses a sample transfer amount to estimate efficiency
+ * @param ratio - Transfer ratio string
+ * @param bonusThreshold - Points threshold for bonus
+ * @param bonusAmount - Bonus miles per threshold
+ * @param bonusApplies - Whether bonus applies
+ * @param sampleAmount - Sample transfer amount to use for calculation (default 10000)
+ * @returns Effective ratio (points lost per mile gained)
+ */
+function calculateEffectiveRatio(
+  ratio: string,
+  bonusThreshold: number | null,
+  bonusAmount: number | null,
+  bonusApplies: boolean,
+  sampleAmount: number = 10000
+): number {
+  const { from: ratioFrom, to: ratioTo } = parseRatioToNumbers(ratio);
+  
+  // Base ratio
+  const baseRatio = ratioFrom / ratioTo;
+  
+  // If no bonus, return base ratio
+  if (!bonusApplies || !bonusThreshold || !bonusAmount || bonusThreshold <= 0) {
+    return baseRatio;
+  }
+  
+  // Calculate miles received with bonus
+  const milesReceived = calculateTransferWithBonus(sampleAmount, ratio, bonusThreshold, bonusAmount, bonusApplies);
+  
+  // Effective ratio = points transferred / miles received
+  if (milesReceived === 0) return baseRatio;
+  return sampleAmount / milesReceived;
+}
+
+/**
  * Build adjacency list graph from transfer paths
  */
 type GraphEdge = {
   to: number;
   ratio: number;
   transferTimeHours: number;
+  ratioString: string; // Keep original ratio string for bonus calculations
+  bonusThreshold: number | null;
+  bonusAmount: number | null;
+  bonusApplies: boolean;
 };
 
 type Graph = Map<number, GraphEdge[]>;
@@ -71,6 +254,10 @@ function buildGraph(transferPaths: TransferPath[]): Graph {
       to: path.to_program_id,
       ratio: parseRatio(path.ratio),
       transferTimeHours: path.transfer_time_hours,
+      ratioString: path.ratio,
+      bonusThreshold: path.bonus_threshold ?? null,
+      bonusAmount: path.bonus_amount ?? null,
+      bonusApplies: path.bonus_applies ?? false,
     });
   }
 
@@ -79,6 +266,7 @@ function buildGraph(transferPaths: TransferPath[]): Graph {
 
 /**
  * Get edge weight based on optimization mode
+ * For "value" mode, uses effective ratio including bonuses
  */
 function getEdgeWeight(
   edge: GraphEdge,
@@ -86,7 +274,15 @@ function getEdgeWeight(
 ): number {
   switch (mode) {
     case "value":
-      return edge.ratio; // Minimize points lost
+      // Use effective ratio that accounts for bonuses
+      // Use a sample amount to estimate efficiency
+      return calculateEffectiveRatio(
+        edge.ratioString,
+        edge.bonusThreshold,
+        edge.bonusAmount,
+        edge.bonusApplies,
+        10000 // Sample 10k points for estimation
+      );
     case "time":
       return edge.transferTimeHours; // Minimize transfer time
     case "hops":

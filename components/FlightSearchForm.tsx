@@ -26,7 +26,7 @@ interface FlightSearchFormProps {
   isSearching: boolean;
 }
 
-export const FlightSearchForm: React.FC<FlightSearchFormProps> = ({
+export const FlightSearchForm: React.FC<FlightSearchFormProps> = React.memo(({
   origin,
   destination,
   date,
@@ -148,4 +148,4 @@ export const FlightSearchForm: React.FC<FlightSearchFormProps> = ({
       </Button>
     </div>
   );
-}; 
+});

@@ -1,20 +1,25 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type { Metadata } from 'next';
+import './globals.css';
+import { Header } from '@/components/Header';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
-}
+  title: 'pointsaway - Maximize Your Loyalty Points for Award Travel',
+  description: 'Find the best award flights and optimize your loyalty points across all your programs. Search, compare, and book flights using points.',
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
-      <body suppressHydrationWarning={true}>{children}</body>
+      <body suppressHydrationWarning={true}>
+        <Header />
+        {children}
+        <Toaster />
+      </body>
     </html>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import type { Itinerary, BookableOption } from "@/lib/supabase";
+import type { Itinerary } from "@/lib/database/supabase";
 
 /**
  * Returns an array of programs that can book all segments, with total points required.

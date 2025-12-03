@@ -1,178 +1,124 @@
-"use client"
+'use client';
 
-import React from "react";
-import { canBook } from "@/lib/database/logic/canBook";
-// Feature imports
-import { usePointsManagement } from "@/lib/features/points";
-import { useProgramsData } from "@/lib/features/programs";
-import { useFormState } from "@/lib/features/routes";
-import { useFlightSearch } from "@/lib/features/flights";
-import type { Flight } from "@/lib/database/supabase";
-import { DEFAULT_USER_ID } from "@/lib/core";
-// Modular UI components
-import { PointsBalance } from "@/components/PointsBalance";
-import { TransferPathPanel } from "@/components/TransferPathPanel";
-import { FlightSearchForm } from "@/components/FlightSearchForm";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/empty-state";
-import { ItineraryCard } from "@/components/itineraryCard";
-import { RouteGrid } from "@/components/RouteGrid";
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { SearchForm } from '@/components/SearchForm';
+import { PointsBalance } from '@/components/PointsBalance';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { mockUser } from '@/data/mockData';
+import { usePointsManagement } from '@/lib/features/points/usePointsManagement';
+import { useProgramsData } from '@/lib/features/programs/useProgramsData';
+import { DEFAULT_USER_ID } from '@/lib/core/constants';
 
+export default function HomePage() {
+  // Points management
+  const { userPoints, updateUserPoints, pointsError } = usePointsManagement(DEFAULT_USER_ID);
+  const { programs } = useProgramsData();
+  const [recentSearches, setRecentSearches] = useState<Array<{
+    id: string;
+    origin: string;
+    destination: string;
+    date: string;
+    timestamp: string;
+    resultCount: number;
+  }>>([]);
 
-export default function FlightPointsOptimizer() {
-  // Placeholder userId for now (replace with real user ID if you have auth)
-  const userId = DEFAULT_USER_ID;
+  // Load recent searches from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('recentExploreSearches');
+      if (stored) {
+        const searches = JSON.parse(stored);
+        setRecentSearches(searches);
+      }
+    } catch (error) {
+      console.error('Error loading recent searches:', error);
+    }
+  }, []);
 
-  // Custom hooks
-  const { userPoints, pointsError, updateUserPoints } = usePointsManagement(userId);
-  const { programs, isLoadingPrograms, dbError } = useProgramsData();
-  const {
-    selectedOrigin,
-    selectedDestination,
-    date,
-    sourceProgram,
-    optimizationMode,
-    setSelectedOrigin,
-    setSelectedDestination,
-    setDate,
-    setSourceProgram,
-    setOptimizationMode,
-    handleRouteSelect,
-    isFormValid
-  } = useFormState();
-  const {
-    itineraries,
-    selectedItinerary,
-    selectedFlight,
-    transferPath,
-    isSearching,
-    isFindingPath,
-    searchPerformed,
-    errorType,
-    setSelectedItinerary,
-    searchForItineraries,
-    selectFlight,
-    selectItinerary,
-    retry
-  } = useFlightSearch();
-
-  // Handler functions
-  const handleSearch = async () => {
-    if (!isFormValid) return;
-    await searchForItineraries(selectedOrigin!.code, selectedDestination!.code, date!);
+  const formatSearchDate = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
-
-
-
-  const handleFlightSelect = async (flight: Flight) => {
-    await selectFlight(flight, Number(sourceProgram), optimizationMode, userPoints);
-  };
-
-  const handleItinerarySelect = async (itinerary: any) => {
-    await selectItinerary(itinerary, Number(sourceProgram), optimizationMode, userPoints);
-  };
-
-
-
-
 
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6 text-center">Flight Points Optimizer</h1>
-
-      {dbError && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
-          <p>{dbError}</p>
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
+      <div className="container mx-auto px-4 py-12">
+        {/* Hero Section */}
+        <div className="mb-12 text-center">
+          <h1 className="mb-4 text-4xl font-bold md:text-5xl">
+            Where will your points take you next, {mockUser.name.split(' ')[0]}?
+          </h1>
+          <p className="text-gray-600">
+            Search award flights and maximize your points across all your loyalty programs
+          </p>
         </div>
-      )}
 
-      {/* Route Selection Grid */}
-      <div className="mb-12 px-2">
-        <RouteGrid onRouteSelect={handleRouteSelect} />
-      </div>
+        {/* Search Form */}
+        <div className="mb-16 flex justify-center">
+          <SearchForm simplified={true} />
+        </div>
 
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Search Award Flights</CardTitle>
-          <CardDescription>Enter your travel details to find available award flights</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FlightSearchForm
-            origin={selectedOrigin}
-            destination={selectedDestination}
-            date={date}
-            sourceProgram={sourceProgram}
-            optimizationMode={optimizationMode}
-            onOriginChange={setSelectedOrigin}
-            onDestinationChange={setSelectedDestination}
-            onDateChange={(d) => setDate(d ?? undefined)}
-            onSourceProgramChange={setSourceProgram}
-            onOptimizationModeChange={setOptimizationMode}
-            onSearch={handleSearch}
-            isLoadingPrograms={isLoadingPrograms}
-            programs={programs}
-            isSearching={isSearching}
-          />
-          {/* Points Balances Section */}
-          <PointsBalance
-            programs={programs}
-            userPoints={userPoints}
-            error={pointsError || undefined}
-            onChange={updateUserPoints}
-          />
-        </CardContent>
-      </Card>
-
-      {searchPerformed && (
-        <>
-          {/* Available Itineraries Section */}
-          {itineraries.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Available Itineraries</CardTitle>
-                    <CardDescription>Select an itinerary to see transfer options</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {itineraries.map(itinerary => (
-                      <ItineraryCard
-                        key={itinerary.itinerary_id}
-                        itinerary={itinerary}
-                        userPoints={userPoints}
-                        onSelect={() => handleItinerarySelect(itinerary)}
-                        selected={selectedItinerary?.itinerary_id === itinerary.itinerary_id}
-                      />
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="lg:col-span-2">
-                <TransferPathPanel
-                  selectedItinerary={selectedItinerary}
-                  transferPath={transferPath}
-                  isFindingPath={isFindingPath}
-                  errorType={errorType}
-                  origin={selectedOrigin?.city || ""}
-                  destination={selectedDestination?.city || ""}
-                  date={date}
-                  onRetry={retry}
-                  optimizationMode={optimizationMode}
-                />
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              errorType={errorType}
-              origin={selectedOrigin?.city || ""}
-              destination={selectedDestination?.city || ""}
-              date={date}
-              onRetry={retry}
+        {/* Points Balance */}
+        {programs.length > 0 && (
+          <div className="mb-12">
+            <PointsBalance
+              programs={programs}
+              userPoints={userPoints}
+              onChange={updateUserPoints}
+              error={pointsError || undefined}
             />
-          )}
-        </>
-      )}
+          </div>
+        )}
+
+        {/* Recent Searches */}
+        {recentSearches.length > 0 && (
+          <div className="mb-12">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent searches</CardTitle>
+                <CardDescription>Pick up where you left off</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentSearches.map((search) => {
+                    const queryParams = new URLSearchParams({
+                      from: search.origin,
+                      to: search.destination,
+                      date: search.date,
+                      passengers: '1',
+                      cabin: 'economy',
+                      type: 'round-trip',
+                    });
+                    return (
+                      <Link
+                        key={search.id}
+                        href={`/search?${queryParams.toString()}`}
+                        className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-gray-50"
+                      >
+                        <div>
+                          <div className="font-medium">
+                            {search.origin} → {search.destination}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {formatSearchDate(search.date)} • {search.resultCount} {search.resultCount === 1 ? 'option' : 'options'}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          View flights
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+      </div>
     </div>
-  )
+  );
 }
