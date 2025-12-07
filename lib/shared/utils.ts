@@ -92,6 +92,7 @@ export function isSameDayArrival(departureTime: string, arrivalTime: string, ori
 
 /**
  * Format flight time display with timezone info
+ * Note: Timezone codes are not displayed - only local times are shown
  */
 export function formatFlightTimeDisplay(
   utcTime: string, 
@@ -103,17 +104,16 @@ export function formatFlightTimeDisplay(
     if (!timezone || timezone === 'UTC') {
       const format = showDate ? "MMM d, h:mm a" : "h:mm a"
       const utcFormatted = formatInTimeZone(new Date(utcTime), 'UTC', format)
-      return `${utcFormatted} UTC`;
+      return utcFormatted;
     }
     
     const format = showDate ? "MMM d, h:mm a" : "h:mm a"
     const localTime = formatInTimeZone(new Date(utcTime), timezone, format)
-    const timezoneAbbr = formatInTimeZone(new Date(utcTime), timezone, 'zzz')
-    return `${localTime} ${timezoneAbbr}`;
+    return localTime;
   } catch (error) {
     // Fallback to UTC on any error
     const format = showDate ? "MMM d, h:mm a" : "h:mm a"
     const utcFormatted = formatInTimeZone(new Date(utcTime), 'UTC', format)
-    return `${utcFormatted} UTC`;
+    return utcFormatted;
   }
 }

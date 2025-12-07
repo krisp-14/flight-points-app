@@ -8,7 +8,6 @@ import { format } from 'date-fns';
 import { SearchForm } from '@/components/SearchForm';
 import { ItineraryCard } from '@/components/ItineraryCard';
 import { TransferPathPanel } from '@/components/TransferPathPanel';
-import { PointsBalance } from '@/components/PointsBalance';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -23,7 +22,7 @@ import { useFlightSearch } from '@/lib/features/flights/useFlightSearch';
 import { useProgramsData } from '@/lib/features/programs/useProgramsData';
 import { usePointsManagement } from '@/lib/features/points/usePointsManagement';
 import { EmptyState } from '@/components/empty-state';
-import { cn } from '@/lib/shared/utils';
+import { cn, formatFlightTimeDisplay, formatFlightDuration, getTimezoneForAirport } from '@/lib/shared/utils';
 import { toast } from '@/components/ui/use-toast';
 
 function SearchResultsContent() {
@@ -306,56 +305,6 @@ function SearchResultsContent() {
           </Card>
         )}
 
-        <PointsBalance
-          programs={programs}
-          userPoints={userPoints}
-          onChange={updateUserPoints}
-          error={pointsError || undefined}
-        />
-
-        {/* Recent Searches from Explore */}
-        {recentSearches.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent searches</CardTitle>
-              <CardDescription>Pick up where you left off</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentSearches.map((search) => {
-                  const queryParams = new URLSearchParams({
-                    from: search.origin,
-                    to: search.destination,
-                    date: search.date,
-                    passengers: '1',
-                    cabin: 'economy',
-                    type: 'round-trip',
-                  });
-                  return (
-                    <Link
-                      key={search.id}
-                      href={`/search?${queryParams.toString()}`}
-                      className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-gray-50"
-                    >
-                      <div>
-                        <div className="font-medium">
-                          {search.origin} → {search.destination}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {formatSearchDate(search.date)} • {search.resultCount} {search.resultCount === 1 ? 'option' : 'options'}
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        View flights
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle>Transfer preferences</CardTitle>
@@ -469,31 +418,64 @@ function SearchResultsContent() {
               {!isSearching && searchPerformed && flights.length === 0 && (
                 <div className="py-4 text-sm text-muted-foreground">No flights found for this search.</div>
               )}
-              {flights.map((flight) => (
-                <Card
-                  key={flight.id}
-                  className={`mb-3 cursor-pointer ${selectedFlight?.id === flight.id ? "border-orange-500 bg-orange-50" : ""}`}
-                  onClick={() => handleFlightSelect(flight)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-semibold">
-                          {flight.origin_code} → {flight.destination_code}
+              {flights.map((flight) => {
+                const originTimezone = getTimezoneForAirport(flight.origin_code);
+                const destinationTimezone = getTimezoneForAirport(flight.destination_code);
+                const departureDisplay = formatFlightTimeDisplay(flight.departure_time, originTimezone, true);
+                const arrivalDisplay = formatFlightTimeDisplay(flight.arrival_time, destinationTimezone, true);
+                const durationStr = formatFlightDuration(flight.departure_time, flight.arrival_time);
+                const bookableOptions = (flight.bookable_options || []).filter((opt: any) => typeof opt.points_required === "number");
+
+                return (
+                  <Card
+                    key={flight.id}
+                    className={`mb-3 cursor-pointer transition-colors hover:bg-gray-50 ${selectedFlight?.id === flight.id ? "border-orange-500 bg-orange-50" : "border-gray-200"}`}
+                    onClick={() => handleFlightSelect(flight)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        {/* Route and Times */}
+                        <div>
+                          <div className="font-semibold text-lg mb-2">
+                            {flight.origin_code} → {flight.destination_code}
+                          </div>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Depart:</span>
+                              <span>{departureDisplay}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Arrive:</span>
+                              <span>{arrivalDisplay}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Duration:</span>
+                              <span>{durationStr}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(flight.departure_time).toLocaleString()} — {new Date(flight.arrival_time).toLocaleString()}
-                        </div>
+
+                        {/* Booking Options */}
+                        {bookableOptions.length > 0 && (
+                          <div className="pt-2 border-t border-gray-200">
+                            <div className="text-xs font-medium text-gray-500 mb-1.5">Booking Options:</div>
+                            <div className="flex flex-wrap gap-2">
+                              {bookableOptions.map((opt: any, index: number) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center px-2.5 py-1 rounded-md bg-green-50 text-green-700 text-xs font-medium"
+                                >
+                                  {opt.points_required?.toLocaleString()} {opt.program_name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm font-medium text-green-700 text-right">
-                        {(flight.bookable_options || [])
-                          .map((opt: any) => `${opt.points_required?.toLocaleString()} ${opt.program_name}`)
-                          .join(" or ")}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -528,6 +510,49 @@ function SearchResultsContent() {
             />
           </div>
         </div>
+
+        {/* Recent Searches from Explore */}
+        {recentSearches.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent searches</CardTitle>
+              <CardDescription>Pick up where you left off</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentSearches.map((search) => {
+                  const queryParams = new URLSearchParams({
+                    from: search.origin,
+                    to: search.destination,
+                    date: search.date,
+                    passengers: '1',
+                    cabin: 'economy',
+                    type: 'round-trip',
+                  });
+                  return (
+                    <Link
+                      key={search.id}
+                      href={`/search?${queryParams.toString()}`}
+                      className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-gray-50"
+                    >
+                      <div>
+                        <div className="font-medium">
+                          {search.origin} → {search.destination}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {formatSearchDate(search.date)} • {search.resultCount} {search.resultCount === 1 ? 'option' : 'options'}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        View flights
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

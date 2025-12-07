@@ -91,19 +91,40 @@ export const ItineraryCard: React.FC<ItineraryCardProps> = React.memo(({ itinera
       </div>
       
       <div className="mt-3 pt-2 border-t">
-        <div className="text-sm font-medium mb-1">Booking Options:</div>
-        <ul className="text-xs">
-          {bookablePrograms.length > 0 ? (
-            bookablePrograms.map(opt => (
-              <li key={opt.program_id} className={opt.canBook ? "text-green-600 font-bold" : "text-gray-600"}>
-                {opt.total_points.toLocaleString()} {opt.program_name} points
-                {opt.canBook && " (You can book)"}
-              </li>
-            ))
-          ) : (
-            <li className="text-gray-500">Not bookable with your programs</li>
-          )}
-        </ul>
+        <div className="text-sm font-medium mb-2">Booking Options:</div>
+        {bookablePrograms.length > 0 ? (
+          <div className="space-y-2">
+            {bookablePrograms.map(opt => (
+              <div 
+                key={opt.program_id} 
+                className={`text-xs p-2 rounded border ${
+                  opt.canBook 
+                    ? "bg-green-50 border-green-200 text-green-800" 
+                    : "bg-gray-50 border-gray-200 text-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{opt.program_name}</span>
+                  <span className={opt.canBook ? "font-bold" : ""}>
+                    {opt.total_points.toLocaleString()} points
+                  </span>
+                </div>
+                <div className="text-xs mt-1 text-gray-500">
+                  You have: {opt.userPointsForProgram.toLocaleString()} points
+                  {opt.canBook ? (
+                    <span className="ml-2 text-green-600 font-semibold">✓ You can book</span>
+                  ) : (
+                    <span className="ml-2 text-red-600">
+                      (Need {((opt.total_points - opt.userPointsForProgram) || 0).toLocaleString()} more)
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-500">Not bookable with your programs</div>
+        )}
       </div>
     </div>
   );

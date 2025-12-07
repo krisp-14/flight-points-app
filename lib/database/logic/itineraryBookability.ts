@@ -6,7 +6,7 @@ import type { Itinerary } from "@/lib/database/supabase";
 export function getBookableProgramsForItinerary(
   itinerary: Itinerary,
   userPoints: { [programId: number]: number }
-): Array<{ program_id: number; program_name: string; total_points: number; canBook: boolean }> {
+): Array<{ program_id: number; program_name: string; total_points: number; canBook: boolean; userPointsForProgram: number }> {
   if (!itinerary.segments || itinerary.segments.length === 0) return [];
 
   // Get the set of program_ids for each segment
@@ -20,7 +20,7 @@ export function getBookableProgramsForItinerary(
   });
 
   // For each program in the intersection, sum the points required across all segments
-  const result: Array<{ program_id: number; program_name: string; total_points: number; canBook: boolean }> = [];
+  const result: Array<{ program_id: number; program_name: string; total_points: number; canBook: boolean; userPointsForProgram: number }> = [];
   intersection.forEach(program_id => {
     let total_points = 0;
     let program_name = "";
@@ -40,11 +40,15 @@ export function getBookableProgramsForItinerary(
       program_name = opt.program_name;
     }
     if (canBook) {
+      const userPointsForProgram = userPoints[program_id] || 0;
+      const canAfford = userPointsForProgram >= total_points;
+      
       result.push({
         program_id,
         program_name,
         total_points,
-        canBook: (userPoints[program_id] || 0) >= total_points,
+        canBook: canAfford,
+        userPointsForProgram,
       });
     }
   });

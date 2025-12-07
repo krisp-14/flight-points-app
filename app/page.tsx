@@ -3,17 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SearchForm } from '@/components/SearchForm';
-import { PointsBalance } from '@/components/PointsBalance';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { mockUser } from '@/data/mockData';
-import { usePointsManagement } from '@/lib/features/points/usePointsManagement';
-import { useProgramsData } from '@/lib/features/programs/useProgramsData';
-import { DEFAULT_USER_ID } from '@/lib/core/constants';
 
 export default function HomePage() {
-  // Points management
-  const { userPoints, updateUserPoints, pointsError } = usePointsManagement(DEFAULT_USER_ID);
-  const { programs } = useProgramsData();
   const [recentSearches, setRecentSearches] = useState<Array<{
     id: string;
     origin: string;
@@ -61,21 +54,9 @@ export default function HomePage() {
           <SearchForm simplified={true} />
         </div>
 
-        {/* Points Balance */}
-        {programs.length > 0 && (
-          <div className="mb-12">
-            <PointsBalance
-              programs={programs}
-              userPoints={userPoints}
-              onChange={updateUserPoints}
-              error={pointsError || undefined}
-            />
-          </div>
-        )}
-
         {/* Recent Searches */}
         {recentSearches.length > 0 && (
-          <div className="mb-12">
+          <div className="mt-12">
             <Card>
               <CardHeader>
                 <CardTitle>Recent searches</CardTitle>
