@@ -22,7 +22,7 @@ import { useFlightSearch } from '@/lib/features/flights/useFlightSearch';
 import { useProgramsData } from '@/lib/features/programs/useProgramsData';
 import { usePointsManagement } from '@/lib/features/points/usePointsManagement';
 import { EmptyState } from '@/components/empty-state';
-import { cn, formatFlightTimeDisplay, formatFlightDuration, getTimezoneForAirport } from '@/lib/shared/utils';
+import { cn, formatFlightTimeDisplay, formatFlightDuration, getTimezoneForAirport, saveRecentSearch, loadRecentSearches } from '@/lib/shared/utils';
 import { toast } from '@/components/ui/use-toast';
 
 function SearchResultsContent() {
@@ -64,19 +64,27 @@ function SearchResultsContent() {
     retry,
   } = useFlightSearch();
 
-  const searchForItinerariesRef = useRef(searchForItineraries);
-  const selectItineraryRef = useRef(selectItinerary);
-  const selectFlightRef = useRef(selectFlight);
+  const searchForItinerariesRef = useRef<typeof searchForItineraries | null>(null);
+  const selectItineraryRef = useRef<typeof selectItinerary | null>(null);
+  const selectFlightRef = useRef<typeof selectFlight | null>(null);
+  const lastSavedSearchRef = useRef<string>('');
 
   useEffect(() => {
-    searchForItinerariesRef.current = searchForItineraries;
+    if (searchForItineraries) {
+      searchForItinerariesRef.current = searchForItineraries;
+    }
   }, [searchForItineraries]);
 
   useEffect(() => {
-    selectItineraryRef.current = selectItinerary;
+    if (selectItinerary) {
+      selectItineraryRef.current = selectItinerary;
+    }
   }, [selectItinerary]);
+  
   useEffect(() => {
-    selectFlightRef.current = selectFlight;
+    if (selectFlight) {
+      selectFlightRef.current = selectFlight;
+    }
   }, [selectFlight]);
 
   // Hydrate page from URL params (e.g., /search?from=YYZ&to=LHR&date=2025-08-29)
@@ -94,7 +102,7 @@ function SearchResultsContent() {
       // Create date at noon local time to avoid timezone shifts
       const [year, month, day] = dateParam.split('-').map(Number);
       const parsedDate = new Date(year, month - 1, day, 12, 0, 0);
-      if (!Number.isNaN(parsedDate.getTime())) {
+      if (!Number.isNaN(parsedDate.getTime()) && searchForItinerariesRef.current) {
         searchForItinerariesRef.current(from, to, parsedDate);
       }
     }
@@ -109,9 +117,9 @@ function SearchResultsContent() {
 
   // Recalculate transfer path when settings change
   useEffect(() => {
-    if (selectedItinerary && sourceProgram) {
+    if (selectedItinerary && sourceProgram && selectItineraryRef.current) {
       selectItineraryRef.current(selectedItinerary, Number(sourceProgram), optimizationMode, userPoints);
-    } else if (selectedFlight && sourceProgram) {
+    } else if (selectedFlight && sourceProgram && selectFlightRef.current) {
       selectFlightRef.current(selectedFlight, Number(sourceProgram), optimizationMode, userPoints);
     }
   }, [selectedItinerary, selectedFlight, sourceProgram, optimizationMode, userPoints]);
@@ -134,7 +142,9 @@ function SearchResultsContent() {
       return;
     }
 
-    await searchForItinerariesRef.current(params.origin, params.destination, parsedDate);
+    if (searchForItinerariesRef.current) {
+      await searchForItinerariesRef.current(params.origin, params.destination, parsedDate);
+    }
 
     const queryParams = new URLSearchParams({
       from: params.origin,
@@ -150,7 +160,7 @@ function SearchResultsContent() {
     router.replace(`/search?${queryParams.toString()}`);
   };
 
-  const handleDateChange = async (date: Date | undefined) => {
+  const handleDateChange = (date: Date | null) => {
     if (!date || !origin || !destination) return;
     
     setEditingDate(date);
@@ -164,25 +174,30 @@ function SearchResultsContent() {
       description: `Searching for flights on ${format(date, 'MMM d, yyyy')}...`,
     });
 
-    try {
-      await searchForItinerariesRef.current(origin, destination, date);
+    // Handle async search without making the function async
+    (async () => {
+      try {
+        if (searchForItinerariesRef.current) {
+          await searchForItinerariesRef.current(origin, destination, date);
+        }
 
-      const queryParams = new URLSearchParams({
-        from: origin,
-        to: destination,
-        date: dateString,
-        passengers: '1',
-        cabin: 'economy',
-        type: 'round-trip',
-      });
-      router.replace(`/search?${queryParams.toString()}`);
-    } catch (error) {
-      toast({
-        title: "Search failed",
-        description: "Unable to refresh results. Please try again.",
-        variant: "destructive",
-      });
-    }
+        const queryParams = new URLSearchParams({
+          from: origin,
+          to: destination,
+          date: dateString,
+          passengers: '1',
+          cabin: 'economy',
+          type: 'round-trip',
+        });
+        router.replace(`/search?${queryParams.toString()}`);
+      } catch (error) {
+        toast({
+          title: "Search failed",
+          description: "Unable to refresh results. Please try again.",
+          variant: "destructive",
+        });
+      }
+    })();
   };
 
   // Initialize editing date when opening edit mode
@@ -197,16 +212,24 @@ function SearchResultsContent() {
 
   // Load recent searches from localStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('recentExploreSearches');
-      if (stored) {
-        const searches = JSON.parse(stored);
-        setRecentSearches(searches);
-      }
-    } catch (error) {
-      console.error('Error loading recent searches:', error);
-    }
+    const searches = loadRecentSearches();
+    setRecentSearches(searches);
   }, []);
+
+  // Save recent search when results are loaded
+  useEffect(() => {
+    if (origin && destination && travelDate && itineraries.length > 0 && !isSearching) {
+      const searchKey = `${origin}-${destination}-${travelDate}`;
+      // Only save if this is a different search than the last one we saved
+      if (lastSavedSearchRef.current !== searchKey) {
+        saveRecentSearch(origin, destination, travelDate, itineraries.length);
+        lastSavedSearchRef.current = searchKey;
+        // Reload recent searches to update the UI
+        const updated = loadRecentSearches();
+        setRecentSearches(updated);
+      }
+    }
+  }, [origin, destination, travelDate, itineraries.length, isSearching]);
 
   const formatSearchDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
@@ -219,7 +242,9 @@ function SearchResultsContent() {
   };
 
   const handleFlightSelect = (flight: Flight) => {
-    selectFlightRef.current(flight, Number(sourceProgram), optimizationMode, userPoints);
+    if (selectFlightRef.current) {
+      selectFlightRef.current(flight, Number(sourceProgram), optimizationMode, userPoints);
+    }
   };
 
   const canCalculatePath = Boolean(sourceProgram);
@@ -383,7 +408,7 @@ function SearchResultsContent() {
                   onRetry={() => {
                     if (origin && destination && travelDate) {
                       const parsedDate = new Date(travelDate);
-                      if (!Number.isNaN(parsedDate.getTime())) {
+                      if (!Number.isNaN(parsedDate.getTime()) && searchForItinerariesRef.current) {
                         searchForItinerariesRef.current(origin, destination, parsedDate);
                       }
                     }
@@ -460,14 +485,22 @@ function SearchResultsContent() {
                           <div className="pt-2 border-t border-gray-200">
                             <div className="text-xs font-medium text-gray-500 mb-1.5">Booking Options:</div>
                             <div className="flex flex-wrap gap-2">
-                              {bookableOptions.map((opt: any, index: number) => (
-                                <span
-                                  key={index}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-md bg-green-50 text-green-700 text-xs font-medium"
-                                >
-                                  {opt.points_required?.toLocaleString()} {opt.program_name}
-                                </span>
-                              ))}
+                              {bookableOptions.map((opt: any, index: number) => {
+                                const userPointsForProgram = userPoints[opt.program_id] || 0;
+                                const hasEnoughPoints = userPointsForProgram >= (opt.points_required || 0);
+                                return (
+                                  <span
+                                    key={index}
+                                    className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                                      hasEnoughPoints
+                                        ? "bg-green-50 text-green-700"
+                                        : "bg-gray-50 text-gray-600"
+                                    }`}
+                                  >
+                                    {opt.points_required?.toLocaleString()} {opt.program_name}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -490,14 +523,14 @@ function SearchResultsContent() {
               destination={destination}
               date={travelDate ? new Date(travelDate) : undefined}
               onRetry={() => {
-                if (selectedItinerary && sourceProgram) {
+                if (selectedItinerary && sourceProgram && selectItineraryRef.current) {
                   selectItineraryRef.current(
                     selectedItinerary,
                     Number(sourceProgram),
                     optimizationMode,
                     userPoints
                   );
-                } else if (selectedFlight && sourceProgram) {
+                } else if (selectedFlight && sourceProgram && selectFlightRef.current) {
                   selectFlightRef.current(
                     selectedFlight,
                     Number(sourceProgram),
@@ -507,6 +540,7 @@ function SearchResultsContent() {
                 }
               }}
               optimizationMode={optimizationMode}
+              userPoints={userPoints}
             />
           </div>
         </div>

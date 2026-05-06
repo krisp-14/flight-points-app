@@ -17,6 +17,7 @@ interface TransferPathPanelProps {
   date: Date | undefined;
   onRetry: () => void;
   optimizationMode: string;
+  userPoints: { [programId: number]: number };
 }
 
 export const TransferPathPanel: React.FC<TransferPathPanelProps> = ({
@@ -30,6 +31,7 @@ export const TransferPathPanel: React.FC<TransferPathPanelProps> = ({
   date,
   onRetry,
   optimizationMode,
+  userPoints,
 }) => {
   const derivedItinerary: Itinerary | null = React.useMemo(() => {
     if (selectedItinerary) return selectedItinerary;
@@ -93,7 +95,7 @@ export const TransferPathPanel: React.FC<TransferPathPanelProps> = ({
             onRetry={onRetry}
           />
         ) : (
-          <TransferPathStepper path={transferPath} itinerary={derivedItinerary} />
+          <TransferPathStepper path={transferPath} itinerary={derivedItinerary} userPoints={userPoints} />
         )}
       </CardContent>
     </Card>

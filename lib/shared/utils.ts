@@ -117,3 +117,84 @@ export function formatFlightTimeDisplay(
     return utcFormatted;
   }
 }
+
+// =============================================================================
+// RECENT SEARCHES UTILITIES
+// =============================================================================
+
+export interface RecentSearch {
+  id: string;
+  origin: string;
+  destination: string;
+  date: string;
+  timestamp: string;
+  resultCount: number;
+}
+
+const RECENT_SEARCHES_KEY = 'recentExploreSearches';
+const MAX_RECENT_SEARCHES = 3;
+
+/**
+ * Save a recent search to localStorage
+ * Keeps only the most recent MAX_RECENT_SEARCHES searches
+ */
+export function saveRecentSearch(
+  origin: string,
+  destination: string,
+  date: string,
+  resultCount: number
+): void {
+  try {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    const existing = localStorage.getItem(RECENT_SEARCHES_KEY);
+    let searches: RecentSearch[] = existing ? JSON.parse(existing) : [];
+
+    // Create new search entry
+    const newSearch: RecentSearch = {
+      id: `${origin}-${destination}-${date}-${Date.now()}`,
+      origin,
+      destination,
+      date,
+      timestamp: new Date().toISOString(),
+      resultCount,
+    };
+
+    // Remove duplicates (same origin, destination, date)
+    searches = searches.filter(
+      (s) => !(s.origin === origin && s.destination === destination && s.date === date)
+    );
+
+    // Add new search at the beginning
+    searches.unshift(newSearch);
+
+    // Keep only the most recent MAX_RECENT_SEARCHES
+    searches = searches.slice(0, MAX_RECENT_SEARCHES);
+
+    // Save back to localStorage
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
+  } catch (error) {
+    console.error('Error saving recent search:', error);
+  }
+}
+
+/**
+ * Load recent searches from localStorage
+ */
+export function loadRecentSearches(): RecentSearch[] {
+  try {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return [];
+    }
+    const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading recent searches:', error);
+  }
+  return [];
+}

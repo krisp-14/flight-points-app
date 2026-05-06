@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SearchForm } from '@/components/SearchForm';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { mockUser } from '@/data/mockData';
+import { loadRecentSearches } from '@/lib/shared/utils';
 
 export default function HomePage() {
   const [recentSearches, setRecentSearches] = useState<Array<{
@@ -18,15 +19,8 @@ export default function HomePage() {
 
   // Load recent searches from localStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('recentExploreSearches');
-      if (stored) {
-        const searches = JSON.parse(stored);
-        setRecentSearches(searches);
-      }
-    } catch (error) {
-      console.error('Error loading recent searches:', error);
-    }
+    const searches = loadRecentSearches();
+    setRecentSearches(searches);
   }, []);
 
   const formatSearchDate = (dateString: string) => {

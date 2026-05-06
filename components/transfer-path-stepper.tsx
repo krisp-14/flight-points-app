@@ -1,5 +1,6 @@
-import { Check, Clock, ExternalLink, Percent, ArrowRight, Gift } from "lucide-react"
+import { Check, Clock, ExternalLink, Percent, ArrowRight, Gift, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { Program, Itinerary } from "@/lib/database/supabase"
 import { calculateTransferWithBonus, calculateOptimalTransferAmount } from "@/lib/database/logic/findBestTransferPath"
 
@@ -16,6 +17,7 @@ type TransferPathStepperProps = {
       }[]
     | null
   itinerary: Itinerary | null
+  userPoints: { [programId: number]: number }
 }
 
 // Helper function to parse ratio string (e.g., "1:1" → {from: 1, to: 1})
@@ -34,7 +36,7 @@ function getEfficiencyLevel(ratio: string): "excellent" | "good" | "poor" {
   return "poor";                           // 2:1, 3:1, etc.
 }
 
-export function TransferPathStepper({ path, itinerary }: TransferPathStepperProps) {
+export function TransferPathStepper({ path, itinerary, userPoints }: TransferPathStepperProps) {
   // If path is empty array, no transfer needed
   if (path && path.length === 0) {
     return (
@@ -159,6 +161,13 @@ export function TransferPathStepper({ path, itinerary }: TransferPathStepperProp
     poor: "text-red-600 border-red-200 bg-red-50"
   };
 
+  // Check if user has enough points for the first transfer step
+  const firstStep = stepsWithPoints[0];
+  const sourceProgramId = firstStep?.from?.id;
+  const pointsNeededForFirstTransfer = firstStep?.pointsToTransfer || 0;
+  const userPointsAvailable = sourceProgramId ? (userPoints[sourceProgramId] || 0) : 0;
+  const hasInsufficientPoints = pointsNeededForFirstTransfer > userPointsAvailable;
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -172,6 +181,17 @@ export function TransferPathStepper({ path, itinerary }: TransferPathStepperProp
 
         <div className="text-sm text-muted-foreground">Follow these steps to transfer your points for this booking</div>
       </div>
+
+      {hasInsufficientPoints && firstStep && firstStep.from && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Insufficient Points</AlertTitle>
+          <AlertDescription>
+            You need {pointsNeededForFirstTransfer.toLocaleString()} {firstStep.from.name} points, but you only have {userPointsAvailable.toLocaleString()} points available.
+            You need {Math.ceil(pointsNeededForFirstTransfer - userPointsAvailable).toLocaleString()} more points to complete this transfer.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="relative">
         {stepsWithPoints.map((step, index) => (
@@ -201,8 +221,21 @@ export function TransferPathStepper({ path, itinerary }: TransferPathStepperProp
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">You'll transfer:</span>
-                        <span className="font-semibold">{step.pointsToTransfer.toLocaleString()} {step.from.name}</span>
+                        <span className={`font-semibold ${index === 0 && step.from?.id && step.pointsToTransfer > (userPoints[step.from.id] || 0) ? 'text-red-600' : ''}`}>
+                          {step.pointsToTransfer.toLocaleString()} {step.from?.name || 'Unknown'}
+                        </span>
                       </div>
+                      {index === 0 && step.from?.id && (
+                        <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200">
+                          <span className="font-medium">Your available:</span>
+                          <span className={`font-semibold ${step.pointsToTransfer > (userPoints[step.from.id] || 0) ? 'text-red-600' : 'text-green-600'}`}>
+                            {(userPoints[step.from.id] || 0).toLocaleString()} {step.from.name}
+                            {step.pointsToTransfer > (userPoints[step.from.id] || 0) && (
+                              <span className="ml-1 text-xs">(insufficient)</span>
+                            )}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">You'll receive:</span>
                         <span className="font-semibold">{step.pointsReceived.toLocaleString()} {step.to.name}</span>

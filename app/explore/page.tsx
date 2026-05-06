@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAvailableRoutes } from '@/lib/shared/api';
-import { cn } from '@/lib/shared/utils';
+import { cn, saveRecentSearch } from '@/lib/shared/utils';
 import { usePointsManagement } from '@/lib/features/points/usePointsManagement';
 import { useProgramsData } from '@/lib/features/programs/useProgramsData';
 import { DEFAULT_USER_ID } from '@/lib/core/constants';
+import { useRouter } from 'next/navigation';
 
 type ExploreRoute = {
   origin: string;
@@ -20,6 +21,7 @@ type ExploreRoute = {
 };
 
 export default function ExplorePage() {
+  const router = useRouter();
   const [routes, setRoutes] = useState<ExploreRoute[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +74,25 @@ export default function ExplorePage() {
     });
   }, [regions, routes, userPoints]);
 
+  const handleCardClick = (route: ExploreRoute) => {
+    const date = route.earliest_departure ? route.earliest_departure.split('T')[0] : '';
+    if (date) {
+      // Save to recent searches before navigating
+      saveRecentSearch(route.origin, route.destination, date, route.count);
+    }
+    
+    const queryParams = new URLSearchParams({
+      from: route.origin,
+      to: route.destination,
+      date,
+      passengers: '1',
+      cabin: 'economy',
+      type: 'round-trip',
+    });
+    
+    router.push(`/search?${queryParams.toString()}`);
+  };
+
   const renderCard = (route: ExploreRoute, locked: boolean) => {
     const queryParams = new URLSearchParams({
       from: route.origin,
@@ -108,12 +129,12 @@ export default function ExplorePage() {
           {locked ? (
             <span className="text-xs text-gray-500">Locked</span>
           ) : (
-            <Link
-              href={`/search?${queryParams.toString()}`}
+            <button
+              onClick={() => handleCardClick(route)}
               className="inline-flex items-center rounded-full bg-orange-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-orange-700"
             >
               View flights
-            </Link>
+            </button>
           )}
         </CardContent>
       </Card>
