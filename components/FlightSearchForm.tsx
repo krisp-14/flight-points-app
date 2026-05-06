@@ -3,7 +3,7 @@ import type { Airport } from "@/lib/core/types";
 import type { Program } from "@/lib/database/supabase";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
+import { TravelDateField } from "@/components/ui/travel-date-field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search } from "lucide-react";
@@ -69,7 +69,7 @@ export const FlightSearchForm: React.FC<FlightSearchFormProps> = React.memo(({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="date" className="block">Travel Date</Label>
-          <Calendar
+          <TravelDateField
             selected={date || null}
             onChange={onDateChange}
             placeholderText="Pick a date"

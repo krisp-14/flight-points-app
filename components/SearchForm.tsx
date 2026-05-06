@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Calendar as CalendarIcon, Search, ArrowRightLeft } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,6 +33,8 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
   const [destination, setDestination] = useState<Airport | null>(null);
   const [departureDate, setDepartureDate] = useState<Date>();
   const [returnDate, setReturnDate] = useState<Date>();
+  const [departurePopoverOpen, setDeparturePopoverOpen] = useState(false);
+  const [returnPopoverOpen, setReturnPopoverOpen] = useState(false);
   
   // For simplified version: track available routes and validation
   const [availableRoutes, setAvailableRoutes] = useState<Array<{ origin: string; destination: string }>>([]);
@@ -186,9 +188,10 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
                 <CalendarIcon className="h-4 w-4 text-gray-600" />
                 <Label htmlFor="departure-simple">Date</Label>
               </div>
-              <Popover>
+              <Popover open={departurePopoverOpen} onOpenChange={setDeparturePopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     id="departure-simple"
                     variant="outline"
                     className={cn(
@@ -199,8 +202,16 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
                     {departureDate ? format(departureDate, 'MMM d, yyyy') : 'Select date'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} initialFocus />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={departureDate}
+                    onSelect={(d) => {
+                      setDepartureDate(d);
+                      if (d) setDeparturePopoverOpen(false);
+                    }}
+                    defaultMonth={departureDate}
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -265,9 +276,10 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
           </div>
           <div className="flex-1">
             <Label htmlFor="departure-compact">Departure</Label>
-            <Popover>
+            <Popover open={departurePopoverOpen} onOpenChange={setDeparturePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
+                  type="button"
                   id="departure-compact"
                   variant="outline"
                   className={cn(
@@ -279,8 +291,16 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
                   {departureDate ? format(departureDate, 'PPP') : 'Pick a date'}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} initialFocus />
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={departureDate}
+                  onSelect={(d) => {
+                    setDepartureDate(d);
+                    if (d) setDeparturePopoverOpen(false);
+                  }}
+                  defaultMonth={departureDate}
+                />
               </PopoverContent>
             </Popover>
           </div>
@@ -413,9 +433,10 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
               <CalendarIcon className="h-4 w-4 text-gray-600" />
               <Label htmlFor="departure">Departure</Label>
             </div>
-            <Popover>
+            <Popover open={departurePopoverOpen} onOpenChange={setDeparturePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
+                  type="button"
                   id="departure"
                   variant="outline"
                   className={cn(
@@ -426,8 +447,16 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
                   {departureDate ? format(departureDate, 'MMM d, yyyy') : 'Select date'}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} initialFocus />
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={departureDate}
+                  onSelect={(d) => {
+                    setDepartureDate(d);
+                    if (d) setDeparturePopoverOpen(false);
+                  }}
+                  defaultMonth={departureDate}
+                />
               </PopoverContent>
             </Popover>
           </div>
@@ -452,9 +481,10 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
               <CalendarIcon className="h-4 w-4 text-gray-600" />
               <Label htmlFor="return">Return</Label>
             </div>
-            <Popover>
+            <Popover open={returnPopoverOpen} onOpenChange={setReturnPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
+                  type="button"
                   id="return"
                   variant="outline"
                   className={cn(
@@ -465,8 +495,17 @@ export function SearchForm({ compact = false, onSearch, simplified = false }: Se
                   {returnDate ? format(returnDate, 'MMM d, yyyy') : 'Select return date'}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={returnDate} onSelect={setReturnDate} initialFocus disabled={(date) => departureDate ? date < departureDate : false} />
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={returnDate}
+                  onSelect={(d) => {
+                    setReturnDate(d);
+                    if (d) setReturnPopoverOpen(false);
+                  }}
+                  defaultMonth={returnDate ?? departureDate}
+                  disabled={departureDate ? { before: startOfDay(departureDate) } : undefined}
+                />
               </PopoverContent>
             </Popover>
           </div>

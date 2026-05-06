@@ -34,6 +34,7 @@ function SearchResultsContent() {
   const [destination, setDestination] = useState('');
   const [travelDate, setTravelDate] = useState<string>('');
   const [editingDate, setEditingDate] = useState<Date | undefined>(undefined);
+  const [editDatePopoverOpen, setEditDatePopoverOpen] = useState(false);
   const [sourceProgram, setSourceProgram] = useState<number | ''>('');
   const [optimizationMode, setOptimizationMode] = useState(DEFAULT_OPTIMIZATION_MODE);
   const [recentSearches, setRecentSearches] = useState<Array<{
@@ -160,10 +161,11 @@ function SearchResultsContent() {
     router.replace(`/search?${queryParams.toString()}`);
   };
 
-  const handleDateChange = (date: Date | null) => {
+  const handleDateChange = (date: Date | undefined) => {
     if (!date || !origin || !destination) return;
-    
+
     setEditingDate(date);
+    setEditDatePopoverOpen(false);
     const dateString = format(date, 'yyyy-MM-dd');
     setTravelDate(dateString);
     setIsEditingSearch(false);
@@ -300,9 +302,10 @@ function SearchResultsContent() {
                     <Label htmlFor="edit-departure" className="text-sm font-medium text-gray-700">
                       Departure Date
                     </Label>
-                    <Popover>
+                    <Popover open={editDatePopoverOpen} onOpenChange={setEditDatePopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
+                          type="button"
                           id="edit-departure"
                           variant="outline"
                           className={cn(
@@ -319,7 +322,7 @@ function SearchResultsContent() {
                           mode="single"
                           selected={editingDate}
                           onSelect={handleDateChange}
-                          initialFocus
+                          defaultMonth={editingDate}
                         />
                       </PopoverContent>
                     </Popover>
